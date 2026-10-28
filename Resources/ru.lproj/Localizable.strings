@@ -1,0 +1,2 @@
+/* Russian is the source language: the keys are the Russian texts and are shown as is.
+   This file must exist, or macOS falls back to the development region (English). */

@@ -1,0 +1,3 @@
+NSMicrophoneUsageDescription = "Granula записує ваш голос на зустрічах — доріжка «Я».";
+NSAudioCaptureUsageDescription = "Granula записує голос співрозмовників із дзвінків — доріжка «Співрозмовник».";
+NSCalendarsFullAccessUsageDescription = "Granula показує найближчі зустрічі й нагадує їх записати. У календар вона нічого не пише.";

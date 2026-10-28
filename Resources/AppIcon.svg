@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="100 100 824 824">
+<!-- Granula app icon, variant «Диалог»: two grains - "me" and "them" - whose overlap
+     is the shared note, on a warm light tile.
+     Rendered by scripts/tools/make-icon.sh; the tile edge and shadow are added there. -->
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#FFF8EF"/>
+<stop offset="1" stop-color="#F8DBBE"/>
+</linearGradient>
+<linearGradient id="or" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#FFA75E"/>
+<stop offset="1" stop-color="#E3511B"/>
+</linearGradient>
+<linearGradient id="dk" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#B8461C"/>
+<stop offset="1" stop-color="#6E2410"/>
+</linearGradient>
+<clipPath id="c">
+<ellipse cx="600" cy="560" rx="235" ry="180" transform="rotate(-28 600 560)"/>
+</clipPath>
+</defs>
+<rect x="100" y="100" width="824" height="824" fill="url(#bg)"/>
+<ellipse cx="600" cy="560" rx="235" ry="180" transform="rotate(-28 600 560)" fill="url(#dk)"/>
+<ellipse cx="424" cy="464" rx="235" ry="180" transform="rotate(-28 424 464)" fill="url(#or)"/>
+<ellipse cx="424" cy="464" rx="235" ry="180" transform="rotate(-28 424 464)" fill="#FFE3C4" clip-path="url(#c)"/>
+</svg>

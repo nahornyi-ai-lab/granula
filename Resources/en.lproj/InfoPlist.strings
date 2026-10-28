@@ -1,0 +1,3 @@
+NSMicrophoneUsageDescription = "Granula records your voice in meetings — the “Me” track.";
+NSAudioCaptureUsageDescription = "Granula records the other side's voice from calls — the “Them” track.";
+NSCalendarsFullAccessUsageDescription = "Granula shows upcoming meetings and reminds you to record them. It never writes to your calendar.";

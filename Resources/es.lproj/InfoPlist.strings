@@ -1,0 +1,3 @@
+NSMicrophoneUsageDescription = "Granula graba tu voz en las reuniones: la pista «Yo».";
+NSAudioCaptureUsageDescription = "Granula graba la voz de los interlocutores en las llamadas: la pista «Interlocutor».";
+NSCalendarsFullAccessUsageDescription = "Granula muestra las próximas reuniones y te recuerda grabarlas. Nunca escribe en tu calendario.";

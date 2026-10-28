@@ -1,0 +1,27 @@
+# Knowledge base (personal wiki, curated outside git)
+# See ~/knowledge/AGENTS.md
+knowledge/
+.kb-ignore
+
+# STT benchmark: downloaded data, models and third-party sources
+bench/data/
+bench/models/
+bench/vendor/
+bench/.venv/
+bench/scripts/swift/*/.build/
+bench/scripts/swift/*/.swiftpm/
+__pycache__/
+
+# Swift build output
+.build/
+.swiftpm/
+build/
+
+# Private agent instructions and macOS litter
+AGENTS.md
+.DS_Store
+
+# Benchmark logs and raw engine outputs (local paths, regenerable)
+bench/results/*.log
+bench/results/logs*/
+bench/results/raw*/

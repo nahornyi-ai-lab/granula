@@ -1,0 +1,14 @@
+engine,ru_rtf,uk_rtf,en_rtf,audio_sec,proc_sec,x_realtime,peak_rss_mb
+apple-dictation,0.0124,0.0106,0.0289,871.2,15.0,58.2,22
+canary-1b-v2,0.0763,0.0694,0.0627,871.2,60.6,14.4,947
+gigaam-multilingual-large-ctc,0.0118,0.0118,0.0123,871.2,10.4,83.4,5163
+gigaam-v3-e2e-rnnt,0.0331,,,302.2,10.0,30.2,2187
+parakeet-ultra,0.0023,0.0022,0.0028,871.2,2.1,408.7,143
+parakeet-v3,0.0022,0.0022,0.0031,871.2,2.2,398.8,143
+qwen3-asr-0.6b-auto,0.1281,0.1391,0.0893,871.2,103.7,8.4,2195
+whisper-large-v3-forced-chunk28,0.1072,0.1156,0.0868,871.2,90.0,9.7,4227
+whisper-large-v3-forced-vad,0.0864,0.0702,0.0247,871.2,53.2,16.4,4217
+whisper-large-v3-forced,0.1851,0.1033,0.1488,871.2,127.6,6.8,4159
+whisper-turbo-forced-chunk28,0.0485,0.05,0.0439,871.2,41.4,21.1,2108
+whisper-turbo-forced-vad,0.0305,0.0218,0.0107,871.2,18.5,47.2,2148
+whisper-turbo-forced,0.0359,0.0416,0.0397,871.2,34.0,25.7,2147
