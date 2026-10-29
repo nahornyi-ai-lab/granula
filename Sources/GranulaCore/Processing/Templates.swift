@@ -1,6 +1,6 @@
 import Foundation
 
-/// Summary templates: editable Markdown files in `~/Documents/Granula/_templates/`.
+/// Summary templates: editable Markdown files in `_templates/` of the meetings folder.
 /// First line `# Name`, the rest is the instruction for that kind of meeting.
 public struct SummaryTemplate: Identifiable, Equatable, Sendable {
     public let id: String      // file name without .md

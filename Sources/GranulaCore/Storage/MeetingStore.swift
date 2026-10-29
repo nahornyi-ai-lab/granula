@@ -22,14 +22,21 @@ public struct MeetingRecord: Identifiable, Equatable, Sendable {
     public func url(_ name: String) -> URL { folder.appendingPathComponent(name) }
 }
 
-/// One folder per meeting under `~/Documents/Granula/`, plain files only.
+/// One folder per meeting under the meetings folder (`~/Documents/Granula/` unless
+/// the owner picked another), plain files only.
 public final class MeetingStore: @unchecked Sendable {
-    public let root: URL
+    public private(set) var root: URL
 
     public init(root: URL? = nil) {
         self.root = root ?? FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Documents/Granula", isDirectory: true)
         try? FileManager.default.createDirectory(at: self.root, withIntermediateDirectories: true)
+    }
+
+    /// Switches to another meetings folder; meetings in the old one stay where they are.
+    public func use(root newRoot: URL) throws {
+        try FileManager.default.createDirectory(at: newRoot, withIntermediateDirectories: true)
+        root = newRoot
     }
 
     public var templatesFolder: URL { root.appendingPathComponent("_templates", isDirectory: true) }

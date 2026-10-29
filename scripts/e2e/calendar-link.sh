@@ -22,7 +22,7 @@ wait_event "calendar.upcoming title=$TITLE" 30 >/dev/null || { echo "FAIL event 
 linked=$(wait_event "calendar.linked" 30) || { echo "FAIL recording not linked to the meeting"; new_log | tail -20; exit 1; }
 echo "$linked"
 line=$(wait_event recording.started 30) || { echo "FAIL recording did not start"; new_log | tail -20; exit 1; }
-DIR=~/Documents/Granula/${line##*folder=}
+DIR=$MEETINGS/${line##*folder=}
 echo "meeting: $DIR"
 wait_event recording.stopped 30 >/dev/null || true
 python3 -I -c "import json,sys; m=json.load(open(sys.argv[1])); sys.exit(0 if m['title'] == sys.argv[2] and m.get('calendarEventID') else 1)" \

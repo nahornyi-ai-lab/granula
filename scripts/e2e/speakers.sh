@@ -16,7 +16,7 @@ log_mark
 trap restore_granula EXIT
 open -n "$APP" --args --e2e-start --e2e-stop-after 78
 line=$(wait_event recording.started 30) || { echo "FAIL recording did not start"; new_log; exit 1; }
-DIR=~/Documents/Granula/${line##*folder=}
+DIR=$MEETINGS/${line##*folder=}
 echo "meeting: $DIR"
 sleep 3
 afplay "$WORK/call.wav"

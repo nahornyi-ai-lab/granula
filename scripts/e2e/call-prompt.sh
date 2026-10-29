@@ -19,7 +19,7 @@ shown=$(wait_event call.prompt_shown 20) || { echo "FAIL no call prompt"; new_lo
 echo "$shown"
 screencapture -x "$WORK/prompt.png" 2>/dev/null && echo "screenshot: $WORK/prompt.png" || echo "screenshot: not allowed here"
 line=$(wait_event recording.started 20) || { echo "FAIL recording did not start from the prompt"; new_log; exit 1; }
-DIR=~/Documents/Granula/${line##*folder=}
+DIR=$MEETINGS/${line##*folder=}
 echo "meeting: $DIR"
 sleep 15
 osascript -e 'tell application "QuickTime Player"' -e 'stop document 1' -e 'close every document saving no' -e 'quit' -e 'end tell' || true

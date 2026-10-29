@@ -43,7 +43,7 @@ echo "$shown"
 lead=$(python3 -I -c "print(round($START - $(epoch ${shown%% *})))")
 echo "reminder ${lead} s before the start"
 line=$(wait_event recording.started 30) || { echo "FAIL recording did not start from the reminder"; new_log; exit 1; }
-DIR=~/Documents/Granula/${line##*folder=}
+DIR=$MEETINGS/${line##*folder=}
 echo "meeting: $DIR"
 echo "status: $(wait_processed "$DIR")"
 new_log | grep -E "calendar\.|recording\.|summary\.|transcript" || true

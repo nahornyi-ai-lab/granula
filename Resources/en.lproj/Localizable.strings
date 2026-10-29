@@ -113,3 +113,8 @@
 "сжатый файл короче исходного: %lf из %lf с" = "the compressed file is shorter than the original: %lf of %lf s";
 "устройство не запустилось (%d)" = "the device failed to start (%d)";
 "участник" = "attendee";
+"Папка для встреч…" = "Meetings folder…";
+"Сейчас встречи сохраняются в %@" = "Meetings are now saved to %@";
+"Выбрать" = "Choose";
+"Не удалось выбрать папку: %@" = "Couldn't use this folder: %@";
+"Сменить папку можно, когда закончатся запись и обработка." = "You can change the folder once recording and processing are finished.";

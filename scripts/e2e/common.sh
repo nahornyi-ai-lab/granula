@@ -1,6 +1,8 @@
 # Shared helpers for E2E scripts (sourced).
 LOG=~/Library/Logs/Granula/granula.log
 APP=/Applications/Granula.app
+# Meetings folder: the one picked in «Папка для встреч…», else the default.
+MEETINGS=$(defaults read ai.nahornyi.granula meetingsFolder 2>/dev/null || echo ~/Documents/Granula)
 mkdir -p ${LOG:h}; touch "$LOG"
 
 quit_granula() {

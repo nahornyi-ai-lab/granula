@@ -21,7 +21,9 @@ final class AppModel: ObservableObject {
     static let remindersKey = "calendarReminders"
     @Published private(set) var language = AppLanguage.chosen
 
-    let store = MeetingStore()
+    let store = MeetingStore(root: UserDefaults.standard.string(forKey: AppModel.folderKey)
+        .map { URL(fileURLWithPath: $0, isDirectory: true) })
+    static let folderKey = "meetingsFolder"
     private(set) lazy var processor = MeetingProcessor(store: store)
     private let callDetector = CallDetector()
     private let callPanel = CallPromptPanel()
@@ -44,12 +46,8 @@ final class AppModel: ObservableObject {
 
     func launch() {
         Log.event("app.launched", "e2e=\(e2e.isActive)")
-        Templates.installDefaults(in: store.templatesFolder)
-        templates = Templates.all(in: store.templatesFolder)
         processor.onUpdate = { [weak self] in self?.handleUpdate($0) }
-        meetings = store.loadAll()
-        processor.recover()
-        meetings = store.loadAll()
+        loadFolder()
 
         callDetector.onCallDetected = { [weak self] app in self?.callDetected(app) ?? false }
         callDetector.onCallEnded = { [weak self] family in self?.callPanel.hide(callFamily: family) }
@@ -296,6 +294,47 @@ final class AppModel: ObservableObject {
     func cancelSummary() { processor.cancelSummary() }
 
     func reloadTemplates() { templates = Templates.all(in: store.templatesFolder) }
+
+    /// Templates and meetings of the meetings folder; finishes what was left there unprocessed.
+    private func loadFolder() {
+        Templates.installDefaults(in: store.templatesFolder)
+        templates = Templates.all(in: store.templatesFolder)
+        meetings = store.loadAll()
+        processor.recover()
+        meetings = store.loadAll()
+    }
+
+    /// «Папка для встреч…»: new meetings go to the chosen folder; old ones stay in the old one.
+    func chooseFolder() {
+        guard !isRecording, !meetings.contains(where: { $0.meeting.status == .processing }) else {
+            presentError(String(localized: "Сменить папку можно, когда закончатся запись и обработка."))
+            return
+        }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.directoryURL = store.root
+        panel.message = String(localized: "Сейчас встречи сохраняются в \(store.root.path)")
+        panel.prompt = String(localized: "Выбрать")
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url,
+              url.standardizedFileURL != store.root.standardizedFileURL else { return }
+        let oldTemplates = store.templatesFolder
+        do {
+            try store.use(root: url)
+        } catch {
+            presentError(String(localized: "Не удалось выбрать папку: \(error.localizedDescription)"))
+            return
+        }
+        if !FileManager.default.fileExists(atPath: store.templatesFolder.path) {
+            try? FileManager.default.copyItem(at: oldTemplates, to: store.templatesFolder)
+        }
+        UserDefaults.standard.set(url.path, forKey: Self.folderKey)
+        Log.event("storage.folder_changed", "path=\(url.path)")
+        selection = nil
+        loadFolder()
+    }
 
     func openFolder(_ record: MeetingRecord) {
         NSWorkspace.shared.activateFileViewerSelecting([record.folder])

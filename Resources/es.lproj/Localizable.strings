@@ -113,3 +113,8 @@
 "сжатый файл короче исходного: %lf из %lf с" = "el archivo comprimido es más corto que el original: %lf de %lf s";
 "устройство не запустилось (%d)" = "el dispositivo no arrancó (%d)";
 "участник" = "participante";
+"Папка для встреч…" = "Carpeta de reuniones…";
+"Сейчас встречи сохраняются в %@" = "Ahora las reuniones se guardan en %@";
+"Выбрать" = "Elegir";
+"Не удалось выбрать папку: %@" = "No se pudo usar esta carpeta: %@";
+"Сменить папку можно, когда закончатся запись и обработка." = "Podrás cambiar la carpeta cuando terminen la grabación y el procesamiento.";

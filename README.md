@@ -29,8 +29,9 @@ Records your mic and the call audio without a bot, transcribes on-device, writes
   duplicates so every phrase is attributed once.
 - **Writes the summary in the conversation's language.** Gist, decisions, tasks (who — what — when),
   open questions, key numbers. Templates are plain markdown files you can edit.
-- **Keeps everything as plain files.** One folder per meeting in `~/Documents/Granula/`:
-  compressed audio, `transcript.md`, `summary.md`, your `notes.md` and `meeting.json`.
+- **Keeps everything as plain files.** One folder per meeting in `~/Documents/Granula/`
+  (or any folder you pick in **Meetings folder…**): compressed audio, `transcript.md`,
+  `summary.md`, your `notes.md` and `meeting.json`.
 - **Speaks four languages.** Interface in English, Russian, Ukrainian and Spanish.
 
 ## Privacy

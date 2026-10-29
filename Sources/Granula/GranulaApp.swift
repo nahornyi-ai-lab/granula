@@ -25,6 +25,7 @@ struct GranulaApp: App {
             }
             CommandGroup(after: .appSettings) {
                 Button("Разрешения и модель…") { model.showOnboarding = true }
+                Button("Папка для встреч…") { model.chooseFolder() }
                 LanguagePicker().environmentObject(model)
             }
         }
@@ -78,6 +79,7 @@ struct MenuBarContent: View {
             NSApp.activate(ignoringOtherApps: true)
             model.showOnboarding = true
         }
+        Button("Папка для встреч…") { model.chooseFolder() }
         LanguagePicker()
         Button("Выйти") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
