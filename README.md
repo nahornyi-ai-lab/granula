@@ -2,36 +2,55 @@
 
 <h1 align="center">Granula</h1>
 
-<p align="center"><b>Meeting notes for macOS that never leave your Mac — until you ask for a summary.</b><br>
-Records your mic and the call audio without a bot, transcribes on-device, writes AI notes in the language of the conversation.</p>
+<p align="center"><b>Meeting notes that stay on your Mac.</b><br>
+Granula records both sides of any call — without a bot joining it — transcribes them on-device<br>
+and turns the conversation into one clear note: decisions, tasks, numbers.</p>
 
 <p align="center">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
 <img src="https://img.shields.io/badge/macOS-14.4%2B-orange.svg" alt="macOS 14.4+">
+<img src="https://img.shields.io/badge/Transcription-on--device-E2701F.svg" alt="Transcription: on-device">
 <img src="https://img.shields.io/badge/Status-alpha-yellow.svg" alt="Status: alpha">
 </p>
 
+<p align="center">
+<a href="docs/granula-demo.mp4"><img src="docs/granula-demo.gif" width="820" alt="Granula in 36 seconds: it notices a call, records Me and Them, transcribes on the Mac and writes one note"></a><br>
+<sub>▶ <a href="docs/granula-demo.mp4">Watch the 36-second film with sound</a></sub>
+</p>
+
+**No bot. No servers. No account.** Just a Mac app, two audio tracks and plain files you own.
+
 ---
 
-## What it does
+## How it works
 
-- **No bot in the call.** Granula records two tracks: **Me** (your microphone) and **Them**
-  (the sound of the call app, captured with a Core Audio process tap). Works with Zoom, Google Meet
-  and any browser call, Telegram, WhatsApp, FaceTime, Teams, Slack and Discord.
-- **Notices calls by itself.** When a call app holds the microphone for a few seconds, a small panel
-  offers to record; when the call ends, recording stops on its own. Or press **⌥⌘R** anywhere.
+**1 · It notices the call.** When Zoom, Google Meet, Telegram, WhatsApp, FaceTime, Teams, Slack,
+Discord or any browser call holds the microphone for a few seconds, a small panel asks
+*Record the meeting?* — one click and you are recording. When the call ends, recording stops on its own.
+Or press **⌥⌘R** anywhere.
+
+**2 · Me from the mic. Them from the call.** Granula records two separate tracks: **Me** (your
+microphone) and **Them** (the sound of the call app, captured with a Core Audio process tap).
+Nobody joins your call, and every phrase knows who said it. On speakers, your mic hears the other
+side too — Granula drops those echoes so each phrase is attributed once.
+
+**3 · Transcribed on your Mac.** [Parakeet TDT 0.6B v3](https://huggingface.co/FluidInference/parakeet-ultra-coreml)
+runs on Core ML through [FluidAudio](https://github.com/FluidInference/FluidAudio): an hour of audio in
+about 10 seconds, and the audio never leaves the Mac. Strong on Russian, Ukrainian and English —
+including English mixed into Russian or Ukrainian in one sentence.
+
+**4 · Two sides, one note.** The summary is written in the language of the conversation: gist,
+decisions, tasks as *who — what — when*, open questions and key numbers. Your own notes from the
+call go in too. Summary templates are plain markdown files you can edit.
+
+**5 · Plain files, yours to keep.** One folder per meeting in `~/Documents/Granula/` (or any folder
+you pick in **Meetings folder…**): compressed audio, `transcript.md`, `summary.md`, your `notes.md`
+and `meeting.json`. Open them in any editor, sync them, grep them.
+
+### Also
+
 - **Knows your calendar.** Upcoming meetings for the next 5 days, a reminder a minute before each one,
   and every recording made during a meeting takes its title and participants. Read-only access.
-- **Transcribes on-device.** [Parakeet TDT 0.6B v3](https://huggingface.co/FluidInference/parakeet-ultra-coreml)
-  running on Core ML through [FluidAudio](https://github.com/FluidInference/FluidAudio). Audio never
-  leaves the Mac. Strong on Russian, Ukrainian and English — including mixed speech in one call.
-- **Removes echo.** When you are on speakers, your mic hears the other side; Granula drops those
-  duplicates so every phrase is attributed once.
-- **Writes the summary in the conversation's language.** Gist, decisions, tasks (who — what — when),
-  open questions, key numbers. Templates are plain markdown files you can edit.
-- **Keeps everything as plain files.** One folder per meeting in `~/Documents/Granula/`
-  (or any folder you pick in **Meetings folder…**): compressed audio, `transcript.md`,
-  `summary.md`, your `notes.md` and `meeting.json`.
 - **Speaks four languages.** Interface in English, Russian, Ukrainian and Spanish.
 
 ## Privacy
