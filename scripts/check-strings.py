@@ -20,8 +20,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 LANGS = ["uk", "en", "es"]
-# Prompt for Claude and text normalisation, not interface text.
-SKIP_FILES = {"Templates.swift", "EchoFilter.swift"}
+# Text normalisation, not interface text.
+SKIP_FILES = {"EchoFilter.swift"}
 CYRILLIC = re.compile(r"[А-Яа-яЁёІіЇїЄєҐґ]")
 SPEC = re.compile(r"%(?:\d+\$)?(?:lld|llu|ld|lu|d|u|@|lf|f)")
 HOLE = "\x00"

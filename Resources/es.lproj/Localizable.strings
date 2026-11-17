@@ -118,3 +118,24 @@
 "Выбрать" = "Elegir";
 "Не удалось выбрать папку: %@" = "No se pudo usar esta carpeta: %@";
 "Сменить папку можно, когда закончатся запись и обработка." = "Podrás cambiar la carpeta cuando terminen la grabación y el procesamiento.";
+
+/* Default summary templates, written to _templates/ in the interface language. */
+"Авто" = "Auto";
+"Сам определи, что это за встреча, и выбери подходящую структуру." = "Determina qué tipo de reunión es y elige la estructura adecuada.";
+"Обязательные разделы: ## Суть (2–4 предложения), ## Решения, ## Задачи (кто — что — срок), ## Открытые вопросы, ## Важные цифры и факты. Пустые разделы пропускай." = "Secciones obligatorias: ## Lo esencial (2–4 frases), ## Decisiones, ## Tareas (quién — qué — cuándo), ## Preguntas abiertas, ## Cifras y datos clave. Omite las secciones vacías.";
+"Переговоры" = "Negociación";
+"Общая встреча" = "Reunión general";
+"Разделы:" = "Secciones:";
+"Суть" = "Lo esencial";
+"Позиции сторон (наша / их)" = "Posiciones de las partes (la nuestra / la suya)";
+"Договорённости" = "Acuerdos";
+"Условия и цифры (цены, сроки, объёмы)" = "Condiciones y cifras (precios, plazos, volúmenes)";
+"Возражения и риски" = "Objeciones y riesgos";
+"Задачи (кто — что — срок)" = "Tareas (quién — qué — cuándo)";
+"Следующий шаг" = "Siguiente paso";
+"Как дела у собеседника" = "Cómo está la otra persona";
+"Что обсудили" = "Lo que hablamos";
+"Решения" = "Decisiones";
+"К следующей встрече" = "Para la próxima reunión";
+"Темы" = "Temas";
+"Открытые вопросы" = "Preguntas abiertas";
