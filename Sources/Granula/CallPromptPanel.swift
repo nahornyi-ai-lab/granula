@@ -2,7 +2,7 @@ import AppKit
 import GranulaCore
 import SwiftUI
 
-/// Floating "Звонок в Telegram — записать?" panel in the top-right corner,
+/// Floating "Call in Telegram — record?" panel in the top-right corner,
 /// also used for the calendar reminder. Non-activating: it never steals focus.
 @MainActor
 final class CallPromptPanel {
@@ -10,12 +10,12 @@ final class CallPromptPanel {
     private var shownFamily: String?
 
     func show(app: CallDetector.CallApp, onRecord: @escaping () -> Void, onDismiss: @escaping () -> Void) {
-        show(title: String(localized: "Звонок в \(app.name)"), onRecord: onRecord, onDismiss: onDismiss)
+        show(title: String(localized: "Call in \(app.name)"), onRecord: onRecord, onDismiss: onDismiss)
         shownFamily = app.family
     }
 
-    /// Any prompt: a call («Звонок в Zoom») or a calendar meeting («Через 1 мин: …»).
-    func show(title: String, subtitle: String = String(localized: "Записать встречу?"),
+    /// Any prompt: a call ("Call in Zoom") or a calendar meeting ("In 1 min: …").
+    func show(title: String, subtitle: String = String(localized: "Record the meeting?"),
               onRecord: @escaping () -> Void, onDismiss: @escaping () -> Void) {
         hide()
         let view = CallPromptView(title: title, subtitle: subtitle, onRecord: onRecord, onDismiss: onDismiss)
@@ -67,8 +67,8 @@ private struct CallPromptView: View {
                 Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            Button("Не сейчас", action: onDismiss)
-            Button("Записать", action: onRecord)
+            Button("Not now", action: onDismiss)
+            Button("Record", action: onRecord)
                 .buttonStyle(.borderedProminent)
                 .tint(Theme.accent)
         }

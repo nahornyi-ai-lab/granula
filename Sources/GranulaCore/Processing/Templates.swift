@@ -13,41 +13,41 @@ public enum Templates {
     /// and the owner reads and edits the files. The language changes only on restart,
     /// so they are built once.
     static let defaults: [(id: String, text: String)] = {
-        let gist = String(localized: "Суть")
-        let decisions = String(localized: "Решения")
-        let tasks = String(localized: "Задачи (кто — что — срок)")
+        let gist = String(localized: "Gist")
+        let decisions = String(localized: "Decisions")
+        let tasks = String(localized: "Tasks (who — what — when)")
         func template(_ name: String, _ sections: [String]) -> String {
-            (["# \(name)", String(localized: "Разделы:")] + sections.map { "## \($0)" }).joined(separator: "\n")
+            (["# \(name)", String(localized: "Sections:")] + sections.map { "## \($0)" }).joined(separator: "\n")
         }
         return [
             ("auto", [
-                "# \(String(localized: "Авто"))",
-                String(localized: "Сам определи, что это за встреча, и выбери подходящую структуру."),
-                String(localized: "Обязательные разделы: ## Суть (2–4 предложения), ## Решения, ## Задачи (кто — что — срок), ## Открытые вопросы, ## Важные цифры и факты. Пустые разделы пропускай."),
+                "# \(String(localized: "Auto"))",
+                String(localized: "Work out what kind of meeting this is and choose a fitting structure."),
+                String(localized: "Required sections: ## Gist (2–4 sentences), ## Decisions, ## Tasks (who — what — when), ## Open questions, ## Key numbers and facts. Skip empty sections."),
             ].joined(separator: "\n")),
-            ("negotiation", template(String(localized: "Переговоры"), [
+            ("negotiation", template(String(localized: "Negotiation"), [
                 gist,
-                String(localized: "Позиции сторон (наша / их)"),
-                String(localized: "Договорённости"),
-                String(localized: "Условия и цифры (цены, сроки, объёмы)"),
-                String(localized: "Возражения и риски"),
+                String(localized: "Positions (ours / theirs)"),
+                String(localized: "Agreements"),
+                String(localized: "Terms and numbers (prices, deadlines, volumes)"),
+                String(localized: "Objections and risks"),
                 tasks,
-                String(localized: "Следующий шаг"),
+                String(localized: "Next step"),
             ])),
             ("one-on-one", template("1:1", [
                 gist,
-                String(localized: "Как дела у собеседника"),
-                String(localized: "Что обсудили"),
+                String(localized: "How the other person is doing"),
+                String(localized: "What we discussed"),
                 decisions,
                 tasks,
-                String(localized: "К следующей встрече"),
+                String(localized: "For the next meeting"),
             ])),
-            ("general", template(String(localized: "Общая встреча"), [
+            ("general", template(String(localized: "General meeting"), [
                 gist,
-                String(localized: "Темы"),
+                String(localized: "Topics"),
                 decisions,
                 tasks,
-                String(localized: "Открытые вопросы"),
+                String(localized: "Open questions"),
             ])),
         ]
     }()
@@ -117,11 +117,6 @@ public enum Templates {
         let minutes = Int((meeting.duration / 60).rounded())
         let cleanNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let people = (meeting.attendees ?? []).isEmpty ? "" : "Attendees: \(meeting.attendees!.map(CalendarRules.readableName).joined(separator: ", "))\n"
-        // The model reads `Me` / `Them`, the labels the system prompt explains;
-        // transcript.md on disk keeps its own.
-        let lines = transcript.segments
-            .map { "[\(Transcript.clock($0.start))] \($0.speaker == .me ? "Me" : "Them"): \($0.text)" }
-            .joined(separator: "\n\n")
         return """
         \(people)Meeting: \(meeting.title)
         When: \(dateFormat.string(from: meeting.startedAt)), \(minutes) min
@@ -130,8 +125,7 @@ public enum Templates {
         \(cleanNotes.isEmpty ? "(none)" : cleanNotes)
 
         ## Transcript
-        \(lines)
-
+        \(transcript.markdown)
         """
     }
 }

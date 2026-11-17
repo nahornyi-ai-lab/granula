@@ -13,12 +13,12 @@ from pathlib import Path
 folder, reference = Path(sys.argv[1]), Path(sys.argv[2]).read_text(encoding="utf-8")
 # The summary is written in the language of the conversation: ru, uk or en.
 FACTS = {
-    "Кочамо / Чили": r"кочам|cocham|\bчили|\bчилі|chile",
-    "Соланки / полиция": r"соланк|solank|полици|поліц|police",
-    "Wild Card / парки ЮАР": r"wild card|юар|парк|южн\w* африк|південн\w* африк|south africa|park",
-    "Китай": r"кита|china|chinese",
-    "Палестина / 1967": r"палестин|palestin|1967",
-    "менеджеры": r"менеджер|керівник|руковод|manager",
+    "Cochamó / Chile": r"кочам|cocham|\bчили|\bчилі|chile",
+    "Solanki / police": r"соланк|solank|полици|поліц|police",
+    "Wild Card / South African parks": r"wild card|юар|парк|южн\w* африк|південн\w* африк|south africa|park",
+    "China": r"кита|china|chinese",
+    "Palestine / 1967": r"палестин|palestin|1967",
+    "managers": r"менеджер|керівник|руковод|manager",
 }
 APOS = re.compile(r"['’ʼ`´‘]")
 
@@ -58,24 +58,24 @@ def duration(path):
 
 results = []
 meeting = json.loads((folder / "meeting.json").read_text())
-results.append(("статус встречи done", meeting["status"] == "done", meeting["status"]))
+results.append(("meeting status is done", meeting["status"] == "done", meeting["status"]))
 
 # Stop pads both tracks with silence, so length alone proves nothing.
 for key in ["micPeak", "systemPeak"]:
     peak = meeting.get(key) or 0
-    results.append((f"{key} ≥ 0.002 (дорожка слышит звук)", peak >= 0.002, f"{peak:.4f}"))
+    results.append((f"{key} ≥ 0.002 (the track hears sound)", peak >= 0.002, f"{peak:.4f}"))
 
 for name in ["mic.m4a", "system.m4a"]:
     d = duration(folder / name) if (folder / name).exists() else 0
-    results.append((f"{name} не пустой (≥60 с)", d >= 60, f"{d:.1f} с"))
+    results.append((f"{name} is not empty (≥60 s)", d >= 60, f"{d:.1f} s"))
 
 segments = json.loads((folder / "transcript.json").read_text())["segments"]
-them = [s for s in segments if s["speaker"] == "Собеседник"]
-me = [s for s in segments if s["speaker"] == "Я"]
+them = [s for s in segments if s["speaker"] == "Them"]
+me = [s for s in segments if s["speaker"] == "Me"]
 ref = norm(reference)
 hyp = norm(" ".join(s["text"] for s in them))
 wer = edit_distance(ref, hyp) / len(ref)
-results.append(("WER «Собеседник» ≤ 20%", wer <= 0.20, f"{wer:.1%}"))
+results.append(("WER of Them ≤ 20%", wer <= 0.20, f"{wer:.1%}"))
 
 dups = []
 for s in me:
@@ -84,17 +84,17 @@ for s in me:
     near_words = norm(" ".join(t["text"] for t in near))
     if words and lcs(words, near_words) / len(words) >= 0.5:
         dups.append(s["text"])
-results.append(("≤1 реплики «Я», дублирующей собеседника", len(dups) <= 1,
-                f"{len(dups)} из {len(me)} реплик «Я»"))
+results.append(("≤1 Me line repeating the other side", len(dups) <= 1,
+                f"{len(dups)} of {len(me)} Me lines"))
 
 summary = (folder / "summary.md").read_text(encoding="utf-8") if (folder / "summary.md").exists() else ""
 found = [k for k, rx in FACTS.items() if re.search(rx, summary.lower())]
-results.append(("итог не пустой и содержит ≥2 факта", len(summary.strip()) > 0 and len(found) >= 2,
-                f"{len(found)} фактов: {', '.join(found)}"))
+results.append(("summary is not empty and has ≥2 facts", len(summary.strip()) > 0 and len(found) >= 2,
+                f"{len(found)} facts: {', '.join(found)}"))
 
 for name, ok, detail in results:
     print(f"{'PASS' if ok else 'FAIL'}  {name}: {detail}")
 for d in dups:
-    print(f"      дубль «Я»: {d}")
+    print(f"      Me duplicate: {d}")
 print(f"echoes dropped by app: {json.loads((folder / 'transcript.json').read_text()).get('droppedEchoes')}")
 sys.exit(0 if all(ok for _, ok, _ in results) else 1)

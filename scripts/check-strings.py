@@ -1,14 +1,15 @@
-"""Critical test: every interface text in the code has a translation in uk, en and es.
+"""Critical test: every interface text in the code has a translation in ru, uk and es.
 
-Without it part of the screen stays in Russian when Granula runs in another language.
+Without it part of the screen stays in English when Granula runs in another language.
 
 Usage: python3 -I scripts/check-strings.py [--keys]
 1. Builds Granula with -emit-localized-strings (own scratch folder .build/l10n) and collects
    the keys the compiler sees: Text("…"), Button("…"), String(localized: "…") and the like.
-2. Every key with Cyrillic letters must be in Resources/{uk,en,es}.lproj/Localizable.strings
-   with the same placeholders (%@, %lld …).
-3. Every Cyrillic string literal in Sources/ must be such a key, unless its line says
-   "not localized" (stored values, folder names) or the file is not interface text.
+2. Every key must be in Resources/{ru,uk,es}.lproj/Localizable.strings with the same
+   placeholders (%@, %lld …). Keys without a letter ("•", "%lld") and the names in SAME
+   read the same in every language and need no translation.
+3. The code is written in English: a Cyrillic string literal in Sources/ is allowed only
+   on a line that says "not localized" (language names, letters, labels in old files).
 --keys prints the keys as JSON and exits (used to write the translation files).
 Exit 0 when everything is translated.
 """
@@ -19,12 +20,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-LANGS = ["uk", "en", "es"]
-# Text normalisation, not interface text.
-SKIP_FILES = {"EchoFilter.swift"}
-CYRILLIC = re.compile(r"[А-Яа-яЁёІіЇїЄєҐґ]")
+LANGS = ["ru", "uk", "es"]
+# Read the same in every language.
+SAME = {"Granula", "⌥⌘R"}
+CYRILLIC = re.compile(r"[\u0400-\u04FF]")
 SPEC = re.compile(r"%(?:\d+\$)?(?:lld|llu|ld|lu|d|u|@|lf|f)")
-HOLE = "\x00"
 
 
 def extract_keys():
@@ -48,7 +48,7 @@ def extract_keys():
             keys.update(e["key"] for e in entries)
     if not keys:
         sys.exit("FAIL compiler reported no strings")
-    return {k for k in keys if CYRILLIC.search(k)}
+    return {k for k in keys if k not in SAME and any(c.isalpha() for c in SPEC.sub("", k))}
 
 
 def load_strings(path):
@@ -65,7 +65,7 @@ def specs(s):
 
 
 def literals(text):
-    """Single-line string literals outside comments and triple-quoted blocks: (line, text with holes)."""
+    """Single-line string literals outside comments and triple-quoted blocks: (line, text)."""
     in_block = False
     for n, line in enumerate(text.splitlines(), 1):
         if line.count('"""') % 2 == 1:
@@ -88,7 +88,7 @@ def literals(text):
                     j += 1
                     continue
                 if line.startswith("\\(", j):
-                    buf, depth, j = buf + HOLE, 1, j + 2
+                    depth, j = 1, j + 2
                     continue
                 if ch == "\\":
                     buf, j = buf + line[j:j + 2], j + 2
@@ -106,30 +106,27 @@ def main():
         print(json.dumps(sorted(keys), ensure_ascii=False, indent=1))
         return
     problems = []
-    # Without a ru table macOS falls back to the development region (English) for Russian.
-    if not (ROOT / "Resources/ru.lproj/Localizable.strings").exists():
-        problems.append("ru: Resources/ru.lproj/Localizable.strings is missing")
+    # English is the source language; its (empty) table keeps it among the localizations.
+    if not (ROOT / "Resources/en.lproj/Localizable.strings").exists():
+        problems.append("en: Resources/en.lproj/Localizable.strings is missing")
     for lang in LANGS:
         path = ROOT / f"Resources/{lang}.lproj/Localizable.strings"
         table = load_strings(path)
         for key in sorted(keys):
             if key not in table:
-                problems.append(f"{lang}: no translation for «{key}»")
+                problems.append(f"{lang}: no translation for {key!r}")
             elif specs(key) != specs(table[key]):
-                problems.append(f"{lang}: placeholders differ in «{key}» → «{table[key]}»")
-    holes = {SPEC.sub(HOLE, k) for k in keys}
+                problems.append(f"{lang}: placeholders differ in {key!r} → {table[key]!r}")
     for src in sorted((ROOT / "Sources").rglob("*.swift")):
-        if src.name in SKIP_FILES:
-            continue
         for n, lit in literals(src.read_text(encoding="utf-8")):
-            if CYRILLIC.search(lit) and lit not in holes:
-                problems.append(f"{src.relative_to(ROOT)}:{n}: text is not a translation key: «{lit}»")
+            if CYRILLIC.search(lit):
+                problems.append(f"{src.relative_to(ROOT)}:{n}: text in code is not English: {lit!r}")
     for p in problems:
         print(p)
     print(f"keys: {len(keys)}, problems: {len(problems)}")
     if problems:
         sys.exit("FAIL translations incomplete")
-    print("PASS every interface text has uk, en and es")
+    print("PASS every interface text has ru, uk and es")
 
 
 if __name__ == "__main__":

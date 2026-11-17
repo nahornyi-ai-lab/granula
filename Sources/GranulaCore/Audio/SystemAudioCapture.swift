@@ -19,11 +19,11 @@ public final class SystemAudioCapture: @unchecked Sendable {
 
         public var description: String {
             switch self {
-            case .tapCreationFailed(let s): return String(localized: "не удалось создать tap (\(s))")
-            case .tapFormatUnreadable(let s): return String(localized: "не читается формат tap (\(s))")
-            case .aggregateCreationFailed(let s): return String(localized: "не создаётся aggregate-устройство (\(s))")
-            case .ioProcCreationFailed(let s): return String(localized: "не создаётся IOProc (\(s))")
-            case .deviceStartFailed(let s): return String(localized: "устройство не запустилось (\(s))")
+            case .tapCreationFailed(let s): return String(localized: "couldn't create the tap (\(s))")
+            case .tapFormatUnreadable(let s): return String(localized: "can't read the tap format (\(s))")
+            case .aggregateCreationFailed(let s): return String(localized: "can't create the aggregate device (\(s))")
+            case .ioProcCreationFailed(let s): return String(localized: "can't create IOProc (\(s))")
+            case .deviceStartFailed(let s): return String(localized: "the device failed to start (\(s))")
             }
         }
     }

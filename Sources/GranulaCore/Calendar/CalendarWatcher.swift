@@ -8,7 +8,7 @@ import Foundation
 public final class CalendarWatcher {
     public enum Access: Equatable, Sendable { case notAsked, granted, denied }
 
-    /// Days read and shown on «Главная»: today and the next four.
+    /// Days read and shown on Home: today and the next four.
     public static let days = 5
 
     /// Meetings from now to the end of the fifth day, by start time.
@@ -30,7 +30,7 @@ public final class CalendarWatcher {
         }
     }
 
-    /// Shows the macOS «Календари» prompt (first time only) and starts reading.
+    /// Shows the macOS Calendars prompt (first time only) and starts reading.
     @discardableResult
     public func requestAccess() async -> Bool {
         do {
@@ -110,7 +110,7 @@ public final class CalendarWatcher {
         let declined = attendees.contains { $0.isCurrentUser && $0.participantStatus == .declined }
         return CalendarMeeting(
             eventID: event.calendarItemExternalIdentifier ?? event.eventIdentifier ?? UUID().uuidString,
-            title: (event.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? String(localized: "Встреча") : event.title,
+            title: (event.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? String(localized: "Meeting") : event.title,
             start: event.startDate,
             end: event.endDate,
             isAllDay: event.isAllDay,
@@ -121,13 +121,13 @@ public final class CalendarWatcher {
             notes: event.notes)
     }
 
-    /// A name without the e-mail: the participant's name, else the part before «@».
+    /// A name without the e-mail: the participant's name, else the part before "@".
     static func displayName(_ participant: EKParticipant) -> String {
         if let name = participant.name?.trimmingCharacters(in: .whitespaces), !name.isEmpty, !name.contains("@") {
             return name
         }
         let address = participant.url.absoluteString.replacingOccurrences(of: "mailto:", with: "")
         return address.split(separator: "@").first.map { CalendarRules.readableName(String($0)) }
-            ?? String(localized: "участник")
+            ?? String(localized: "attendee")
     }
 }

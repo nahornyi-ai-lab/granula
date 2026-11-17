@@ -16,7 +16,7 @@ final class TemplatesTests: XCTestCase {
         XCTAssertTrue(prompt.contains("[01:05] Them: hi there"))
         // With Latin input, any Cyrillic letter would come from the prompt itself.
         for text in [Templates.system, prompt] {
-            XCTAssertNil(text.range(of: "[А-Яа-яЁёІіЇїЄєҐґ]", options: .regularExpression), text)
+            XCTAssertNil(text.range(of: "\\p{Cyrillic}", options: .regularExpression), text)
         }
     }
 

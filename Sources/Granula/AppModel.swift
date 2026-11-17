@@ -98,8 +98,8 @@ final class AppModel: ObservableObject {
         do {
             let linked = event ?? CalendarRules.current(in: calendar.meetings, now: Date())
             if event == nil, let linked { Log.event("calendar.linked", "title=\(linked.title)") }
-            let title = linked?.title ?? callApp.map { String(localized: "Звонок в \($0.name)") }
-                ?? String(localized: "Встреча")
+            let title = linked?.title ?? callApp.map { String(localized: "Call in \($0.name)") }
+                ?? String(localized: "Meeting")
             var record = try store.create(title: title, callApp: callApp?.family)
             if let linked {
                 record.meeting.calendarEventID = linked.eventID
@@ -130,7 +130,7 @@ final class AppModel: ObservableObject {
             }
         } catch {
             Log.error("recording.start_failed", error)
-            presentError(String(localized: "Не удалось начать запись: \(error.localizedDescription)"))
+            presentError(String(localized: "Couldn't start recording: \(error.localizedDescription)"))
         }
     }
 
@@ -235,8 +235,8 @@ final class AppModel: ObservableObject {
         let lead = meeting.start.timeIntervalSinceNow
         Log.event("calendar.reminder_shown", "title=\(meeting.title) lead=\(Int(lead.rounded()))")
         let minutes = max(1, Int((lead / 60).rounded(.up)))
-        let title = lead > 0 ? String(localized: "Через \(minutes) мин: \(meeting.title)")
-            : String(localized: "Сейчас: \(meeting.title)")
+        let title = lead > 0 ? String(localized: "In \(minutes) min: \(meeting.title)")
+            : String(localized: "Now: \(meeting.title)")
         callPanel.show(title: title, onRecord: { [weak self] in
             Log.event("calendar.reminder_accepted", "title=\(meeting.title)")
             Task { await self?.startRecording(event: meeting) }
@@ -274,7 +274,7 @@ final class AppModel: ObservableObject {
             }
             replace(fresh)
         } catch {
-            presentError(String(localized: "Не удалось переименовать: \(error.localizedDescription)"))
+            presentError(String(localized: "Couldn't rename: \(error.localizedDescription)"))
         }
     }
 
@@ -304,10 +304,10 @@ final class AppModel: ObservableObject {
         meetings = store.loadAll()
     }
 
-    /// «Папка для встреч…»: new meetings go to the chosen folder; old ones stay in the old one.
+    /// "Meetings folder…": new meetings go to the chosen folder; old ones stay in the old one.
     func chooseFolder() {
         guard !isRecording, !meetings.contains(where: { $0.meeting.status == .processing }) else {
-            presentError(String(localized: "Сменить папку можно, когда закончатся запись и обработка."))
+            presentError(String(localized: "You can change the folder once recording and processing are finished."))
             return
         }
         let panel = NSOpenPanel()
@@ -315,8 +315,8 @@ final class AppModel: ObservableObject {
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
         panel.directoryURL = store.root
-        panel.message = String(localized: "Сейчас встречи сохраняются в \(store.root.path)")
-        panel.prompt = String(localized: "Выбрать")
+        panel.message = String(localized: "Meetings are now saved to \(store.root.path)")
+        panel.prompt = String(localized: "Choose")
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK, let url = panel.url,
               url.standardizedFileURL != store.root.standardizedFileURL else { return }
@@ -324,7 +324,7 @@ final class AppModel: ObservableObject {
         do {
             try store.use(root: url)
         } catch {
-            presentError(String(localized: "Не удалось выбрать папку: \(error.localizedDescription)"))
+            presentError(String(localized: "Couldn't use this folder: \(error.localizedDescription)"))
             return
         }
         if !FileManager.default.fileExists(atPath: store.templatesFolder.path) {
@@ -388,14 +388,14 @@ final class AppModel: ObservableObject {
         language = new
         Log.event("app.language", "value=\(new.rawValue.isEmpty ? "system" : new.rawValue)")
         let alert = NSAlert()
-        alert.messageText = String(localized: "Язык сменится после перезапуска Granula")
+        alert.messageText = String(localized: "The language changes after Granula restarts")
         if isRecording {
-            alert.informativeText = String(localized: "Сейчас идёт запись — перезапустите Granula после неё.")
+            alert.informativeText = String(localized: "A recording is in progress — restart Granula after it.")
             alert.runModal()
             return
         }
-        alert.addButton(withTitle: String(localized: "Перезапустить"))
-        alert.addButton(withTitle: String(localized: "Позже"))
+        alert.addButton(withTitle: String(localized: "Restart"))
+        alert.addButton(withTitle: String(localized: "Later"))
         if alert.runModal() == .alertFirstButtonReturn { relaunch() }
     }
 
@@ -409,8 +409,8 @@ final class AppModel: ObservableObject {
 
     // MARK: - E2E snapshots
 
-    /// `--e2e-snapshot <folder>`: «Главная», the newest meeting (the same action as a click),
-    /// «Главная» again — each saved as PNG of the main window. Needs no screen-recording permission.
+    /// `--e2e-snapshot <folder>`: Home, the newest meeting (the same action as a click),
+    /// Home again — each saved as PNG of the main window. Needs no screen-recording permission.
     private func takeE2ESnapshots(to folder: URL) {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         Task { @MainActor in

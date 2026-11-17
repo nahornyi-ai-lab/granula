@@ -15,10 +15,10 @@ public final class MicCapture: NSObject, AVCaptureAudioDataOutputSampleBufferDel
 
         public var description: String {
             switch self {
-            case .notAuthorized: return String(localized: "нет доступа к микрофону")
-            case .noDevice: return String(localized: "микрофон не найден")
-            case .cannotAddInput: return String(localized: "микрофон не подключается")
-            case .cannotAddOutput: return String(localized: "не создаётся выход захвата")
+            case .notAuthorized: return String(localized: "no microphone access")
+            case .noDevice: return String(localized: "microphone not found")
+            case .cannotAddInput: return String(localized: "microphone won't connect")
+            case .cannotAddOutput: return String(localized: "can't create the capture output")
             }
         }
     }

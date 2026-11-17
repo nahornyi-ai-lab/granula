@@ -17,7 +17,7 @@ struct NotesEditor: View {
                 .padding(.horizontal, 22)
                 .padding(.vertical, 14)
             if text.isEmpty {
-                Text("Пишите заметки по ходу встречи — они попадут в итог")
+                Text("Take notes during the meeting — they go into the summary")
                     .font(.system(size: 15))
                     .foregroundStyle(.tertiary)
                     .padding(.horizontal, 27)
@@ -60,14 +60,14 @@ struct SummaryTab: View {
         let summary = model.store.read(MeetingFile.summary, of: record) ?? ""
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                Picker("Шаблон", selection: $template) {
+                Picker("Template", selection: $template) {
                     ForEach(model.templates) { Text($0.name).tag($0.id) }
                 }
                 .frame(maxWidth: 260)
-                Button("Пересоздать") { model.regenerate(record, template: template) }
+                Button("Regenerate") { model.regenerate(record, template: template) }
                     .disabled(busy)
                 Spacer()
-                CopyButton(title: "Копировать итог") { model.copySummary(record) }
+                CopyButton(title: "Copy summary") { model.copySummary(record) }
                     .disabled(summary.isEmpty)
             }
             .padding(.horizontal, 28)
@@ -80,7 +80,7 @@ struct SummaryTab: View {
                         .padding(.bottom, 28)
                         .frame(maxWidth: 760, alignment: .leading)
                 } else {
-                    (busy ? Text("Итог появится после расшифровки.") : Text("Итога пока нет."))
+                    (busy ? Text("The summary will appear after the transcript.") : Text("No summary yet."))
                         .foregroundStyle(.secondary)
                         .padding(28)
                 }
@@ -102,12 +102,12 @@ struct TranscriptTab: View {
     var body: some View {
         if let transcript = Transcript.load(from: record.url(MeetingFile.transcriptJSON)) {
             if transcript.segments.isEmpty {
-                Text("Речи в записи не найдено.").foregroundStyle(.secondary).padding(28)
+                Text("No speech found in the recording.").foregroundStyle(.secondary).padding(28)
             } else {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
                         Spacer()
-                        CopyButton(title: "Копировать расшифровку") { model.copyTranscript(record) }
+                        CopyButton(title: "Copy transcript") { model.copyTranscript(record) }
                     }
                     .padding(.horizontal, 28)
                     .padding(.vertical, 10)
@@ -125,12 +125,12 @@ struct TranscriptTab: View {
                 }
             }
         } else {
-            Text("Расшифровка появится после окончания записи.").foregroundStyle(.secondary).padding(28)
+            Text("The transcript will appear when the recording ends.").foregroundStyle(.secondary).padding(28)
         }
     }
 }
 
-/// Copies to the clipboard and shows «Скопировано» for a moment, so the click is visibly done.
+/// Copies to the clipboard and shows "Copied" for a moment, so the click is visibly done.
 struct CopyButton: View {
     let title: LocalizedStringKey
     let action: () -> Void
@@ -142,7 +142,7 @@ struct CopyButton: View {
             copied = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
         } label: {
-            Label(copied ? "Скопировано" : title, systemImage: copied ? "checkmark" : "doc.on.doc")
+            Label(copied ? "Copied" : title, systemImage: copied ? "checkmark" : "doc.on.doc")
         }
     }
 }
@@ -167,11 +167,11 @@ struct TranscriptLine: View {
 }
 
 extension Speaker {
-    /// On screen the labels follow the interface language; files keep «Я» / «Собеседник».
+    /// On screen the labels follow the interface language; files keep "Me" / "Them".
     var label: LocalizedStringKey {
         switch self {
-        case .me: return "Я"
-        case .them: return "Собеседник"
+        case .me: return "Me"
+        case .them: return "Them"
         }
     }
 }

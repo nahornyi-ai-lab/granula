@@ -113,8 +113,8 @@ scripts               app build, icon render, string checks, end-to-end tests
 bench                 speech-to-text benchmark
 ```
 
-Interface strings are written in Russian in code and serve as translation keys;
-`scripts/check-strings.py` checks that every key has an English, Ukrainian and Spanish translation.
+Interface strings are written in English in code and serve as translation keys;
+`scripts/check-strings.py` checks that every key has a Russian, Ukrainian and Spanish translation.
 
 ## Status
 

@@ -24,8 +24,8 @@ struct GranulaApp: App {
                 Button(model.recordMenuTitle) { model.toggleRecording() }
             }
             CommandGroup(after: .appSettings) {
-                Button("Разрешения и модель…") { model.showOnboarding = true }
-                Button("Папка для встреч…") { model.chooseFolder() }
+                Button("Permissions and model…") { model.showOnboarding = true }
+                Button("Meetings folder…") { model.chooseFolder() }
                 LanguagePicker().environmentObject(model)
             }
         }
@@ -61,37 +61,37 @@ struct MenuBarContent: View {
 
     var body: some View {
         if let snapshot = model.snapshot {
-            Text("Идёт запись · \(Transcript.clock(snapshot.elapsed))")
+            Text("Recording · \(Transcript.clock(snapshot.elapsed))")
         }
         Button(model.recordMenuTitle) { model.toggleRecording() }
-        Button("Открыть Granula") {
+        Button("Open Granula") {
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
         }
         Divider()
         if model.calendarAccess == .granted {
-            Toggle("Напоминать о встречах", isOn: $model.remindersOn)
+            Toggle("Meeting reminders", isOn: $model.remindersOn)
         } else {
-            Button("Подключить календарь") { Task { await model.connectCalendar() } }
+            Button("Connect calendar") { Task { await model.connectCalendar() } }
         }
-        Button("Разрешения и модель…") {
+        Button("Permissions and model…") {
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
             model.showOnboarding = true
         }
-        Button("Папка для встреч…") { model.chooseFolder() }
+        Button("Meetings folder…") { model.chooseFolder() }
         LanguagePicker()
-        Button("Выйти") { NSApp.terminate(nil) }
+        Button("Quit") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
     }
 }
 
-/// «Язык» submenu with a check mark next to the current choice.
+/// "Language" submenu with a check mark next to the current choice.
 struct LanguagePicker: View {
     @EnvironmentObject var model: AppModel
 
     var body: some View {
-        Picker("Язык", selection: Binding(get: { model.language }, set: { model.setLanguage($0) })) {
+        Picker("Language", selection: Binding(get: { model.language }, set: { model.setLanguage($0) })) {
             ForEach(AppLanguage.allCases) { Text(verbatim: $0.name).tag($0) }
         }
     }
@@ -100,6 +100,6 @@ struct LanguagePicker: View {
 extension AppModel {
     /// ⌥⌘R itself is the global hot key; it is shown in the title, not bound as a menu shortcut.
     var recordMenuTitle: String {
-        (isRecording ? String(localized: "Остановить запись") : String(localized: "Новая встреча")) + "  ⌥⌘R"
+        (isRecording ? String(localized: "Stop recording") : String(localized: "New meeting")) + "  ⌥⌘R"
     }
 }

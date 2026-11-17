@@ -1,14 +1,14 @@
 #!/bin/zsh
-# E2E — a recording started without the reminder (hot key, «Новая встреча», call
+# E2E — a recording started without the reminder (hot key, "New meeting", call
 # prompt) during a calendar meeting takes that meeting's title and event id
 # (attendees come with it; the helper cannot add attendees, so the summary
-# line «Участники» is covered by CalendarRulesTests). The helper creates
-# "E2E связка", started a minute ago; Granula starts a plain recording at once.
+# line "Attendees" is covered by CalendarRulesTests). The helper creates
+# "E2E link", started a minute ago; Granula starts a plain recording at once.
 set -euo pipefail
 ROOT=${0:A:h:h:h}
 source ${0:A:h}/common.sh
 WORK=${E2E_WORK:-$(mktemp -d)}
-TITLE="E2E связка"
+TITLE="E2E link"
 HELPER=$ROOT/build/GranulaE2ECalendar.app
 [[ -x $HELPER/Contents/MacOS/GranulaE2ECalendar ]] || { echo "FAIL build the helper first: scripts/e2e/calendar.sh"; exit 1; }
 trap 'fixture delete || true; restore_granula' EXIT

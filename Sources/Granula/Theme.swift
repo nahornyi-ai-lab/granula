@@ -12,7 +12,7 @@ enum Theme {
 
     static func serif(_ size: CGFloat) -> Font { .system(size: size, design: .serif) }
 
-    /// The app icon's «Диалог» mark for the menu bar: two grains whose overlap stays empty.
+    /// The app icon's "Dialogue" mark for the menu bar: two grains whose overlap stays empty.
     static let menuBarMark: NSImage = {
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
             let mark = NSBezierPath()
@@ -51,7 +51,7 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     /// Language names are written in their own language, never translated.
     var name: String {
         switch self {
-        case .system: return String(localized: "Как в системе")
+        case .system: return String(localized: "System language")
         case .ru: return "Русский"     // not localized: autonym
         case .uk: return "Українська"  // not localized: autonym
         case .en: return "English"

@@ -2,9 +2,21 @@ import FluidAudio
 import Foundation
 
 public enum Speaker: String, Codable, Sendable {
-    // not localized: stored in transcript.json; the app shows Speaker.label
-    case me = "Я"  // not localized
-    case them = "Собеседник"  // not localized
+    // Stored in transcript.json and written to transcript.md; the app shows Speaker.label.
+    case me = "Me"
+    case them = "Them"
+
+    /// Transcripts written before these labels became English carry the Russian ones.
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        switch raw {
+        case "Me", "Я": self = .me  // not localized: old files
+        case "Them", "Собеседник": self = .them  // not localized: old files
+        default:
+            throw DecodingError.dataCorrupted(
+                .init(codingPath: decoder.codingPath, debugDescription: "unknown speaker \(raw)"))
+        }
+    }
 }
 
 /// One line of the transcript.
@@ -42,7 +54,7 @@ public struct Transcript: Codable, Equatable, Sendable {
         return try e.encode(self)
     }
 
-    /// `[мм:сс] Я: …` lines.
+    /// `[mm:ss] Me: …` lines.
     public var markdown: String {
         segments.map { "[\(Self.clock($0.start))] \($0.speaker.rawValue): \($0.text)" }
             .joined(separator: "\n\n") + "\n"

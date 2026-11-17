@@ -15,7 +15,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/Granula" "$APP/Contents/MacOS/Granula"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 [[ -f "$ROOT/Resources/AppIcon.icns" ]] && cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/"
-# Interface translations and permission texts: ru, uk, en, es.
+# Interface translations and permission texts: en, ru, uk, es.
 for lproj in "$ROOT"/Resources/*.lproj(N); do cp -R "$lproj" "$APP/Contents/Resources/"; done
 for bundle in "$BIN"/*.bundle(N); do cp -R "$bundle" "$APP/Contents/Resources/"; done
 

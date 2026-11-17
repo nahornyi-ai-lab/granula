@@ -154,6 +154,6 @@ public final class MeetingStore: @unchecked Sendable {
             .replacingOccurrences(of: ":", with: "-")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let short = String(cleaned.prefix(80))
-        return short.isEmpty ? "Встреча" : short  // not localized: folder name
+        return short.isEmpty ? "Meeting" : short  // not localized: folder name
     }
 }

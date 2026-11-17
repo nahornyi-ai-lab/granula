@@ -1,15 +1,15 @@
 #!/bin/zsh
 # E2E — main screen and interface languages. The calendar helper creates the event
-# "E2E встреча" an hour ahead (too early for a reminder). Granula runs in Spanish,
+# "E2E meeting" an hour ahead (too early for a reminder). Granula runs in Spanish,
 # then in English, with --e2e-snapshot: it saves PNGs of its own window —
-# «Главная», the newest meeting (the same action as a click), «Главная» again.
-# Then look at the pictures: no Russian interface text (meeting titles aside),
-# the «Предстоящие» card with the test event, the feed by day, the meeting screen.
+# Home, the newest meeting (the same action as a click), Home again.
+# Then look at the pictures: all interface text in that language (meeting titles aside),
+# the "Coming up" card with the test event, the feed by day, the meeting screen.
 set -euo pipefail
 ROOT=${0:A:h:h:h}
 source ${0:A:h}/common.sh
 WORK=${E2E_WORK:-$(mktemp -d)}
-TITLE="E2E встреча"
+TITLE="E2E meeting"
 HELPER=$ROOT/build/GranulaE2ECalendar.app
 [[ -x $HELPER/Contents/MacOS/GranulaE2ECalendar ]] || { echo "FAIL build the helper first: scripts/e2e/calendar.sh"; exit 1; }
 trap 'fixture delete || true; restore_granula' EXIT

@@ -1,7 +1,7 @@
 import AVFoundation
 import Foundation
 
-/// Records one meeting: microphone ("Я") and system audio ("Собеседник") to
+/// Records one meeting: microphone ("Me") and system audio ("Them") to
 /// two CAF tracks on one timeline. One track failing never stops the other.
 /// Lives on the main thread; capture callbacks only touch the writers.
 @MainActor
@@ -63,7 +63,7 @@ public final class Recorder {
         if micAllowed {
             startMic()
         } else {
-            micState = .failed(String(localized: "нет доступа к микрофону"))
+            micState = .failed(String(localized: "no microphone access"))
             Log.event("mic.denied")
         }
         deviceObserver = AudioDeviceObserver(
@@ -103,8 +103,8 @@ public final class Recorder {
         let s = systemWriter.stats
         var warnings = watchdogWarnings
         if let notice = rebuildNotice, Date().timeIntervalSince(notice.at) < 10 { warnings.append(notice.text) }
-        if case .failed(let why) = micState { warnings.insert(String(localized: "Микрофон не пишется: \(why)"), at: 0) }
-        if case .failed(let why) = systemState { warnings.insert(String(localized: "Звук звонка не пишется: \(why)"), at: 0) }
+        if case .failed(let why) = micState { warnings.insert(String(localized: "Microphone isn't recording: \(why)"), at: 0) }
+        if case .failed(let why) = systemState { warnings.insert(String(localized: "Call audio isn't recording: \(why)"), at: 0) }
         return Snapshot(
             elapsed: Date().timeIntervalSince(startedAt),
             micState: micState, systemState: systemState,
@@ -143,7 +143,7 @@ public final class Recorder {
     private func rebuildMic(reason: String) {
         guard !isStopped, MicCapture.isAuthorized else { return }
         Log.event("mic.rebuild", "reason=\(reason)")
-        if reason == "no_buffers" { rebuildNotice = (String(localized: "Микрофон не давал звук — переподключаю"), Date()) }
+        if reason == "no_buffers" { rebuildNotice = (String(localized: "No microphone audio — reconnecting"), Date()) }
         mic.stop()
         mic = MicCapture()
         startMic()
@@ -152,7 +152,7 @@ public final class Recorder {
     private func rebuildSystem(reason: String) {
         guard !isStopped else { return }
         Log.event("system.rebuild", "reason=\(reason)")
-        if reason == "no_buffers" { rebuildNotice = (String(localized: "Звук звонка не поступал — переподключаю"), Date()) }
+        if reason == "no_buffers" { rebuildNotice = (String(localized: "No call audio — reconnecting"), Date()) }
         system.stop()
         system = SystemAudioCapture()
         startSystem()
@@ -183,12 +183,12 @@ public final class Recorder {
         let elapsed = now.timeIntervalSince(startedAt)
         if micState == .running, elapsed > Self.silentMicTimeout,
            now.timeIntervalSince(m.lastSoundAt ?? startedAt) > Self.silentMicTimeout {
-            warnings.append(String(localized: "Микрофон молчит"))
+            warnings.append(String(localized: "Microphone is silent"))
         }
         let micHeardRecently = m.lastSoundAt.map { now.timeIntervalSince($0) < Self.silentSystemTimeout } ?? false
         if systemState == .running, elapsed > Self.silentSystemTimeout, micHeardRecently,
            now.timeIntervalSince(s.lastNonZeroAt ?? startedAt) > Self.silentSystemTimeout {
-            warnings.append(String(localized: "Звук звонка не слышен — если это звонок, проверьте разрешение «Запись системного звука»"))
+            warnings.append(String(localized: "No call audio — if this is a call, check the “System Audio Recording” permission"))
         }
         if warnings != watchdogWarnings {
             watchdogWarnings = warnings

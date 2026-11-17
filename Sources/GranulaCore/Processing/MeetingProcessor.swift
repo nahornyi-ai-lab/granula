@@ -46,7 +46,7 @@ public final class MeetingProcessor {
         runIfIdle()
     }
 
-    /// "Повторить" after a failure, or "Пересоздать" for a finished meeting.
+    /// "Retry" after a failure, or "Regenerate" for a finished meeting.
     public func retry(_ record: MeetingRecord, template: String? = nil, regenerateSummary: Bool = false) {
         let updated = update(record) {
             $0.status = .processing
@@ -87,7 +87,7 @@ public final class MeetingProcessor {
                 try await Transcriber.shared.prepare()
             } catch {
                 Log.error("asr.model_failed", error)
-                record = update(record) { $0.status = .noModel; $0.stage = nil; $0.error = String(localized: "Модель распознавания не загрузилась: \(error.localizedDescription)") }
+                record = update(record) { $0.status = .noModel; $0.stage = nil; $0.error = String(localized: "The speech recognition model failed to load: \(error.localizedDescription)") }
                 return
             }
             do {
@@ -98,7 +98,7 @@ public final class MeetingProcessor {
                 Log.event("transcript.done", "segments=\(built.segments.count) echoes_dropped=\(built.droppedEchoes)")
             } catch {
                 Log.error("transcript.failed", error)
-                record = update(record) { $0.status = .failed; $0.stage = nil; $0.error = String(localized: "Расшифровка не удалась: \(error.localizedDescription)") }
+                record = update(record) { $0.status = .failed; $0.stage = nil; $0.error = String(localized: "Transcription failed: \(error.localizedDescription)") }
                 return
             }
         }
@@ -114,10 +114,10 @@ public final class MeetingProcessor {
                 try await Task.detached { try Compressor.compress(caf, to: m4a) }.value
             } catch {
                 Log.error("compress.failed \(raw)", error)
-                compressError = String(localized: "Звук не сжат, исходная запись сохранена: \(error.localizedDescription)")
+                compressError = String(localized: "Audio not compressed, the original recording is kept: \(error.localizedDescription)")
             }
         }
-        // A finished meeting with unsquashed audio shows the error and «Повторить».
+        // A finished meeting with unsquashed audio shows the error and "Retry".
         func finish(_ change: (inout Meeting) -> Void) -> MeetingRecord {
             update(record) {
                 change(&$0)
@@ -134,20 +134,20 @@ public final class MeetingProcessor {
         }
         let notes = store.read(MeetingFile.notes, of: record) ?? ""
         guard let transcript, !(transcript.segments.isEmpty && notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) else {
-            try? store.write(String(localized: "Речи в записи не найдено.") + "\n", MeetingFile.summary, of: record)
+            try? store.write(String(localized: "No speech found in the recording.") + "\n", MeetingFile.summary, of: record)
             record = finish { $0.status = .done }
             Log.event("processing.done", "folder=\(record.folder.lastPathComponent) empty=1")
             return
         }
         record = update(record) { $0.stage = .summarizing }
         let templates = Templates.all(in: store.templatesFolder)
-        // A failed rebuild stays a rebuild: «Повторить» must not settle for the old summary.
+        // A failed rebuild stays a rebuild: "Retry" must not settle for the old summary.
         func failed(_ text: String) {
             if rebuild { regenerate.insert(record.id) }
             record = update(record) { $0.status = .summaryFailed; $0.stage = nil; $0.error = text }
         }
         guard let template = templates.first(where: { $0.id == record.meeting.template }) ?? templates.first else {
-            failed(String(localized: "Нет шаблонов итога"))
+            failed(String(localized: "No summary templates"))
             return
         }
         do {
@@ -158,10 +158,10 @@ public final class MeetingProcessor {
             record = finish { $0.status = .done; $0.error = nil }
             Log.event("processing.done", "folder=\(record.folder.lastPathComponent)")
         } catch SummaryGenerator.SummaryError.cancelled {
-            failed(String(localized: "Итог отменён"))
+            failed(String(localized: "Summary cancelled"))
         } catch {
             Log.error("summary.error", error)
-            failed(String(localized: "Итог не получился: \(String(describing: error))"))
+            failed(String(localized: "Summary failed: \(String(describing: error))"))
         }
     }
 

@@ -2,12 +2,12 @@ import AppKit
 import GranulaCore
 import SwiftUI
 
-/// «Главная»: the current recording, upcoming calendar meetings, past meetings by day.
+/// Home: the current recording, upcoming calendar meetings, past meetings by day.
 struct HomeView: View {
     @EnvironmentObject var model: AppModel
 
     var body: some View {
-        // Re-drawn every 30 s: «идёт», today/tomorrow and «Сегодня» follow the clock.
+        // Re-drawn every 30 s: "in progress", today/tomorrow and "Today" follow the clock.
         TimelineView(.periodic(from: .now, by: 30)) { context in
             SnapshotFriendlyScroll {
                 VStack(alignment: .leading, spacing: 0) {
@@ -55,11 +55,11 @@ struct RecordingCard: View {
     var body: some View {
         HStack(spacing: 12) {
             Circle().fill(.red).frame(width: 9, height: 9)
-            Text("Идёт запись: \(record.meeting.title) · \(Transcript.clock(model.snapshot?.elapsed ?? 0))")
+            Text("Recording: \(record.meeting.title) · \(Transcript.clock(model.snapshot?.elapsed ?? 0))")
                 .monospacedDigit()
                 .lineLimit(1)
             Spacer(minLength: 8)
-            Button("Открыть") { model.selection = record.id }
+            Button("Open") { model.selection = record.id }
                 .buttonStyle(PillButtonStyle())
         }
         .padding(.horizontal, 16)
@@ -76,7 +76,7 @@ struct UpcomingSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Предстоящие").font(Theme.serif(28))
+            Text("Coming up").font(Theme.serif(28))
             if model.calendarAccess == .granted {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(days.enumerated()), id: \.offset) { index, day in
@@ -88,10 +88,10 @@ struct UpcomingSection: View {
             } else {
                 HStack(spacing: 12) {
                     Image(systemName: "calendar").foregroundStyle(Theme.tileIcon)
-                    Text("Здесь появятся ближайшие встречи из Календаря Mac.")
+                    Text("Upcoming meetings from the Mac Calendar will appear here.")
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 8)
-                    Button("Подключить календарь") { Task { await model.connectCalendar() } }
+                    Button("Connect calendar") { Task { await model.connectCalendar() } }
                         .buttonStyle(PillButtonStyle())
                 }
                 .padding(16)
@@ -137,7 +137,7 @@ struct DayRow: View {
                 if events.isEmpty {
                     HStack(spacing: 10) {
                         AccentBar(color: Theme.line)
-                        Text("Встреч нет").foregroundStyle(.secondary)
+                        Text("No meetings").foregroundStyle(.secondary)
                         Spacer(minLength: 0)
                     }
                     .frame(height: 34)
@@ -164,7 +164,7 @@ struct UpcomingEventRow: View {
                 Text(subtitle).font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            Button("Записать") { Task { await model.startRecording(event: meeting) } }
+            Button("Record") { Task { await model.startRecording(event: meeting) } }
                 .buttonStyle(PillButtonStyle())
                 .disabled(model.isRecording)
         }
@@ -174,7 +174,7 @@ struct UpcomingEventRow: View {
     private var subtitle: String {
         let range = meeting.start.formatted(date: .omitted, time: .shortened) + " – "
             + meeting.end.formatted(date: .omitted, time: .shortened)
-        return meeting.start <= now ? String(localized: "\(range) · идёт") : range
+        return meeting.start <= now ? String(localized: "\(range) · in progress") : range
     }
 }
 
@@ -211,8 +211,8 @@ struct FeedSection: View {
 
     static func dayTitle(_ day: Date) -> String {
         let calendar = Calendar.current
-        if calendar.isDateInToday(day) { return String(localized: "Сегодня") }
-        if calendar.isDateInYesterday(day) { return String(localized: "Вчера") }
+        if calendar.isDateInToday(day) { return String(localized: "Today") }
+        if calendar.isDateInYesterday(day) { return String(localized: "Yesterday") }
         let thisYear = calendar.isDate(day, equalTo: Date(), toGranularity: .year)
         return AppLanguage.format(day, template: thisYear ? "EEEdMMM" : "yMMMd")
     }
@@ -246,18 +246,18 @@ struct FeedRow: View {
         .onHover { hovering = $0 }
     }
 
-    /// Up to three attendees, then «ещё N».
+    /// Up to three attendees, then "and N more".
     private var people: String? {
         guard let all = record.meeting.attendees?.map(CalendarRules.readableName), !all.isEmpty else { return nil }
         let shown = all.prefix(3).joined(separator: ", ")
-        return all.count > 3 ? String(localized: "\(shown) и ещё \(all.count - 3)") : shown
+        return all.count > 3 ? String(localized: "\(shown) and \(all.count - 3) more") : shown
     }
 
     private var trailing: String {
         let time = record.meeting.startedAt.formatted(date: .omitted, time: .shortened)
-        if isRecording { return String(localized: "\(time) · идёт запись") }
+        if isRecording { return String(localized: "\(time) · recording") }
         let minutes = max(1, Int((record.meeting.duration / 60).rounded()))
-        return String(localized: "\(time) · \(minutes) мин")
+        return String(localized: "\(time) · \(minutes) min")
     }
 }
 
@@ -292,12 +292,12 @@ struct FirstMeetingInvite: View {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .frame(width: 72, height: 72)
-            Text("Запишите первую встречу").font(Theme.serif(22))
-            Text("Нажмите «Новая встреча» или ⌥⌘R. Во время звонка в Zoom, Telegram или браузере Granula сама предложит записать.")
+            Text("Record your first meeting").font(Theme.serif(22))
+            Text("Click “New meeting” or press ⌥⌘R. During a call in Zoom, Telegram or a browser, Granula offers to record.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 400)
-            Button("Новая встреча") { Task { await model.startRecording() } }
+            Button("New meeting") { Task { await model.startRecording() } }
                 .buttonStyle(PillButtonStyle(prominent: true))
         }
         .frame(maxWidth: .infinity)

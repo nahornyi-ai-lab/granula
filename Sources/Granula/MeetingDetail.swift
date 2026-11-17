@@ -8,16 +8,16 @@ struct MeetingDetail: View {
     @State private var title = ""
 
     enum Tab: String, CaseIterable, Identifiable {
-        case notes = "Заметки"
-        case summary = "Итог"
-        case transcript = "Расшифровка"
+        case notes = "Notes"
+        case summary = "Summary"
+        case transcript = "Transcript"
         var id: String { rawValue }
 
         var title: LocalizedStringKey {
             switch self {
-            case .notes: return "Заметки"
-            case .summary: return "Итог"
-            case .transcript: return "Расшифровка"
+            case .notes: return "Notes"
+            case .summary: return "Summary"
+            case .transcript: return "Transcript"
             }
         }
     }
@@ -28,7 +28,7 @@ struct MeetingDetail: View {
         VStack(alignment: .leading, spacing: 0) {
             header
                 .padding(.leading, 28)
-                .padding(.trailing, 220)  // room for the «Новая встреча» pill
+                .padding(.trailing, 220)  // room for the "New meeting" pill
                 .padding(.top, 20)
                 .padding(.bottom, 12)
             if isRecording, let snapshot = model.snapshot {
@@ -69,10 +69,10 @@ struct MeetingDetail: View {
         }
         .toolbar {
             ToolbarItemGroup {
-                Button { model.openFolder(record) } label: { Label("Открыть папку", systemImage: "folder") }
-                    .help("Открыть папку встречи")
-                Button { model.copySummary(record) } label: { Label("Копировать итог", systemImage: "doc.on.doc") }
-                    .help("Копировать итог")
+                Button { model.openFolder(record) } label: { Label("Open folder", systemImage: "folder") }
+                    .help("Open the meeting folder")
+                Button { model.copySummary(record) } label: { Label("Copy summary", systemImage: "doc.on.doc") }
+                    .help("Copy summary")
                     .disabled(record.meeting.status != .done)
             }
         }
@@ -80,7 +80,7 @@ struct MeetingDetail: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            TextField("Название", text: $title)
+            TextField("Title", text: $title)
                 .textFieldStyle(.plain)
                 .font(Theme.serif(28))
                 .onSubmit { model.rename(record, to: title) }
@@ -103,8 +103,8 @@ struct MeetingDetail: View {
     private var subtitle: String {
         var parts = [AppLanguage.format(record.meeting.startedAt, template: "yMMMMdjmm")]
         let minutes = max(1, Int((record.meeting.duration / 60).rounded()))
-        if !isRecording { parts.append(String(localized: "\(minutes) мин")) }
-        if record.meeting.interrupted { parts.append(String(localized: "запись прервана")) }
+        if !isRecording { parts.append(String(localized: "\(minutes) min")) }
+        if record.meeting.interrupted { parts.append(String(localized: "recording interrupted")) }
         return parts.joined(separator: " · ")
     }
 }
@@ -124,14 +124,14 @@ struct RecordingPanel: View {
                         .font(.system(.title3, design: .monospaced).weight(.medium))
                 }
                 VStack(alignment: .leading, spacing: 5) {
-                    LevelMeter(label: "Я", level: snapshot.micLevel, state: snapshot.micState)
-                    LevelMeter(label: "Собеседник", level: snapshot.systemLevel, state: snapshot.systemState)
+                    LevelMeter(label: "Me", level: snapshot.micLevel, state: snapshot.micState)
+                    LevelMeter(label: "Them", level: snapshot.systemLevel, state: snapshot.systemState)
                 }
                 Spacer()
                 Button(role: .destructive) {
                     model.stopRecording(reason: "user")
                 } label: {
-                    Label("Остановить", systemImage: "stop.fill")
+                    Label("Stop", systemImage: "stop.fill")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.red)
@@ -191,16 +191,16 @@ struct StatusBanner: View {
                 ProgressView().controlSize(.small)
                 Text(stageText).foregroundStyle(.secondary)
                 if record.meeting.stage == .summarizing {
-                    Button("Отменить") { model.cancelSummary() }.controlSize(.small)
+                    Button("Cancel") { model.cancelSummary() }.controlSize(.small)
                 }
             }
             .padding(.bottom, 4)
         case .summaryFailed, .noModel, .failed:
             HStack(spacing: 10) {
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                Text(record.meeting.error ?? String(localized: "Ошибка")).font(.callout).lineLimit(3)
+                Text(record.meeting.error ?? String(localized: "Error")).font(.callout).lineLimit(3)
                 Spacer()
-                Button("Повторить") { model.retry(record) }
+                Button("Retry") { model.retry(record) }
             }
             .padding(10)
             .background(RoundedRectangle(cornerRadius: 8).fill(Color.orange.opacity(0.1)))
@@ -212,10 +212,10 @@ struct StatusBanner: View {
 
     private var stageText: String {
         switch record.meeting.stage {
-        case .transcribing: return String(localized: "Расшифровываю…")
-        case .compressing: return String(localized: "Сжимаю звук…")
-        case .summarizing: return String(localized: "Пишу итог…")
-        case nil: return String(localized: "В очереди на обработку…")
+        case .transcribing: return String(localized: "Transcribing…")
+        case .compressing: return String(localized: "Compressing audio…")
+        case .summarizing: return String(localized: "Writing the summary…")
+        case nil: return String(localized: "Waiting to be processed…")
         }
     }
 }

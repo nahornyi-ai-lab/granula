@@ -13,10 +13,10 @@ public final class SummaryGenerator: @unchecked Sendable {
 
         public var description: String {
             switch self {
-            case .claudeNotFound: return String(localized: "не найден Claude Code (команда claude)")
-            case .failed(let code, let output): return String(localized: "claude завершился с кодом \(code): \(output)")
-            case .empty: return String(localized: "claude вернул пустой ответ")
-            case .cancelled: return String(localized: "отменено")
+            case .claudeNotFound: return String(localized: "Claude Code not found (the claude command)")
+            case .failed(let code, let output): return String(localized: "claude exited with code \(code): \(output)")
+            case .empty: return String(localized: "claude returned an empty answer")
+            case .cancelled: return String(localized: "cancelled")
             }
         }
     }

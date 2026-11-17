@@ -48,21 +48,21 @@ public enum CalendarRules {
 
     static let callHosts = ["zoom.us/", "meet.google.com/", "teams.microsoft.com/", "telemost.yandex"]
 
-    /// Whether an event is a meeting worth recording (spec «Какие события считаются встречами»).
+    /// Whether an event is a meeting worth recording.
     public static func isMeeting(_ event: CalendarMeeting) -> Bool {
         if event.isAllDay || event.declinedByMe { return false }
         if event.end.timeIntervalSince(event.start) > maxDuration { return false }
         return !event.attendees.isEmpty || hasCallLink(event)
     }
 
-    /// Zoom, Meet, Teams, Telemost, or a t.me link with «call» in it — in URL, location or notes.
+    /// Zoom, Meet, Teams, Telemost, or a t.me link with "call" in it — in URL, location or notes.
     public static func hasCallLink(_ event: CalendarMeeting) -> Bool {
         let text = [event.url, event.location, event.notes].compactMap { $0 }.joined(separator: " ").lowercased()
         if callHosts.contains(where: text.contains) { return true }
         return text.split(whereSeparator: \.isWhitespace).contains { $0.contains("t.me/") && $0.contains("call") }
     }
 
-    /// «olena.kovalenko» → «Olena Kovalenko»: a readable name from an e-mail login.
+    /// "olena.kovalenko" → "Olena Kovalenko": a readable name from an e-mail login.
     /// A name that already has a space or a capital letter stays as it is.
     public static func readableName(_ raw: String) -> String {
         guard !raw.contains(" "), raw == raw.lowercased() else { return raw }
@@ -75,7 +75,7 @@ public enum CalendarRules {
     public static let linkEarly: TimeInterval = 5 * 60
 
     /// The meeting going on now (or starting within 5 minutes) — a recording started
-    /// from the call prompt, the hot key or «Новая встреча» takes its title and attendees.
+    /// from the call prompt, the hot key or "New meeting" takes its title and attendees.
     /// Several at once → the one whose start is nearest to now.
     public static func current(in events: [CalendarMeeting], now: Date) -> CalendarMeeting? {
         events

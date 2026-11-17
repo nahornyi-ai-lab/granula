@@ -4,9 +4,9 @@ import Foundation
 // Sources/amanu/Transcription/EchoFilter.swift. Thresholds follow the
 // granula v1 spec (80 % in-order containment, ±1.5 s).
 
-/// Drops "Я" lines that are the speakers heard by the microphone: when a call
+/// Drops "Me" lines that are the speakers heard by the microphone: when a call
 /// plays through the speakers, the raw mic hears the far end, which would
-/// otherwise appear twice — as "Собеседник" and again as "Я".
+/// otherwise appear twice — as "Them" and again as "Me".
 public enum EchoFilter {
     static let containment = 0.8
     static let pad: TimeInterval = 1.5
@@ -43,7 +43,7 @@ public enum EchoFilter {
     /// ASCII would turn every Cyrillic line into zero words.
     static func words(_ text: String) -> [String] {
         var cleaned = ""
-        for ch in text.lowercased().replacingOccurrences(of: "ё", with: "е") {
+        for ch in text.lowercased().replacingOccurrences(of: "ё", with: "е") {  // not localized: letters
             cleaned.append(ch.isLetter || ch.isNumber || ch == "'" ? ch : " ")
         }
         return cleaned.split(separator: " ").map { String($0) }

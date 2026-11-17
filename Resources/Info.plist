@@ -19,9 +19,9 @@
 	<string>en</string>
 	<key>CFBundleLocalizations</key>
 	<array>
+		<string>en</string>
 		<string>ru</string>
 		<string>uk</string>
-		<string>en</string>
 		<string>es</string>
 	</array>
 	<key>CFBundleIconFile</key>
@@ -33,10 +33,10 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Granula записывает ваш голос на встречах — дорожка «Я».</string>
+	<string>Granula records your voice in meetings — the “Me” track.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Granula показывает предстоящие встречи и напоминает записать их. В календарь она ничего не пишет.</string>
+	<string>Granula shows upcoming meetings and reminds you to record them. It never writes to your calendar.</string>
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>Granula записывает голос собеседников из звонков — дорожка «Собеседник».</string>
+	<string>Granula records the other side's voice from calls — the “Them” track.</string>
 </dict>
 </plist>

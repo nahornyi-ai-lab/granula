@@ -35,7 +35,7 @@ public enum Compressor {
         let outSeconds = Double(check.length) / check.processingFormat.sampleRate
         guard abs(inSeconds - outSeconds) < 0.5 || inSeconds == 0 else {
             throw CocoaError(.fileWriteUnknown, userInfo: [NSLocalizedDescriptionKey:
-                String(localized: "сжатый файл короче исходного: \(outSeconds) из \(inSeconds) с")])
+                String(localized: "the compressed file is shorter than the original: \(outSeconds) of \(inSeconds) s")])
         }
         try? FileManager.default.removeItem(at: m4a)
         try FileManager.default.moveItem(at: temp, to: m4a)

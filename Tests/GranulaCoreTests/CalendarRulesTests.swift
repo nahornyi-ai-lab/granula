@@ -10,21 +10,21 @@ final class CalendarRulesTests: XCTestCase {
             CalendarMeeting(eventID: id, title: id, start: now + seconds, end: now + seconds + 1800,
                             isAllDay: allDay, declinedByMe: declined, attendees: attendees, location: location)
         }
-        let withPeople = event("Созвон с Иваном", in: 50, attendees: ["Иван Петров"])
-        let zoomOnly = event("Демо", in: 55, location: "https://us02web.zoom.us/j/123456")
-        let personal = event("Обед", in: 40)
-        let allDay = event("Отпуск", in: 30, attendees: ["Анна"], allDay: true)
-        let declined = event("Планёрка", in: 20, attendees: ["Анна"], declined: true)
+        let withPeople = event("Call with Ivan", in: 50, attendees: ["Ivan Petrov"])
+        let zoomOnly = event("Demo", in: 55, location: "https://us02web.zoom.us/j/123456")
+        let personal = event("Lunch", in: 40)
+        let allDay = event("Vacation", in: 30, attendees: ["Anna"], allDay: true)
+        let declined = event("Standup", in: 20, attendees: ["Anna"], declined: true)
         let events = [withPeople, zoomOnly, personal, allDay, declined]
 
         // The nearest real meeting comes first; personal, all-day and declined never do.
         let first = CalendarRules.dueReminder(in: events, now: now, reminded: [], isRecording: false)
-        XCTAssertEqual(first?.title, "Созвон с Иваном")
-        XCTAssertEqual(first?.attendees, ["Иван Петров"])
+        XCTAssertEqual(first?.title, "Call with Ivan")
+        XCTAssertEqual(first?.attendees, ["Ivan Petrov"])
 
         // Once reminded, the Zoom-only meeting is next.
         let second = CalendarRules.dueReminder(in: events, now: now, reminded: [withPeople.reminderKey], isRecording: false)
-        XCTAssertEqual(second?.title, "Демо")
+        XCTAssertEqual(second?.title, "Demo")
 
         // After both, nothing else is a meeting.
         XCTAssertNil(CalendarRules.dueReminder(in: events, now: now,

@@ -22,18 +22,18 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 12) {
                 Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 44, height: 44)
-                Text("Настройка Granula").font(Theme.serif(24))
+                Text("Set up Granula").font(Theme.serif(24))
             }
-            Text("Четыре шага, один раз. Звук и расшифровка остаются на этом Mac; для ИИ-итога текст расшифровки отправляется в Claude.")
+            Text("Four steps, once. Audio and transcripts stay on this Mac; for the AI summary the transcript text is sent to Claude.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            step(number: 1, title: "Микрофон", detail: "Ваш голос — дорожка «Я».",
-                 state: micOK ? .ok : (micDenied ? .failed(String(localized: "Доступ запрещён — включите Granula в Настройках")) : .idle)) {
+            step(number: 1, title: "Microphone", detail: "Your voice — the “Me” track.",
+                 state: micOK ? .ok : (micDenied ? .failed(String(localized: "Access denied — turn Granula on in System Settings")) : .idle)) {
                 if micDenied {
-                    Button("Открыть Настройки") { openSettings("Privacy_Microphone") }
+                    Button("Open Settings") { openSettings("Privacy_Microphone") }
                 } else if !micOK {
-                    Button("Разрешить") {
+                    Button("Allow") {
                         Task {
                             micOK = await MicCapture.requestAccess()
                             micDenied = !micOK
@@ -42,33 +42,33 @@ struct OnboardingView: View {
                 }
             }
 
-            step(number: 2, title: "Звук звонка",
-                 detail: "Голос собеседника — дорожка «Собеседник». Проверка проиграет короткий звук.",
+            step(number: 2, title: "Call audio",
+                 detail: "The other side's voice — the “Them” track. The check plays a short sound.",
                  state: systemState) {
                 if systemState != .ok {
                     Button { runSystemCheck() } label: {
-                        systemState == .idle ? Text("Проверить") : Text("Проверить снова")
+                        systemState == .idle ? Text("Check") : Text("Check again")
                     }
                         .disabled(systemState == .running)
                     if case .failed = systemState {
-                        Button("Открыть Настройки") { openSettings("Privacy_ScreenCapture") }
+                        Button("Open Settings") { openSettings("Privacy_ScreenCapture") }
                     }
                 }
             }
 
-            step(number: 3, title: "Модель распознавания",
-                 detail: "Parakeet, ~600 МБ, работает без интернета. Русский, украинский, английский.",
+            step(number: 3, title: "Speech recognition model",
+                 detail: "Parakeet, ~600 MB, works offline. Russian, Ukrainian, English.",
                  state: modelState) {
                 if modelState == .running {
                     ProgressView(value: modelProgress).frame(width: 120)
                 } else if modelState != .ok {
-                    Button("Загрузить") { loadModel() }
+                    Button("Download") { loadModel() }
                 }
             }
 
-            step(number: 4, title: "Календарь",
-                 detail: "Встречи из «Календаря» Mac: список предстоящих и напоминание за минуту. Granula только читает.",
-                 state: calendarAccess == .granted ? .ok : (calendarAccess == .denied ? .failed(String(localized: "Доступ запрещён — включите Granula в Настройках → Календари")) : .idle)) {
+            step(number: 4, title: "Calendar",
+                 detail: "Meetings from the Mac Calendar app: the upcoming list and a reminder a minute before. Granula only reads.",
+                 state: calendarAccess == .granted ? .ok : (calendarAccess == .denied ? .failed(String(localized: "Access denied — turn Granula on in System Settings → Calendars")) : .idle)) {
                 if calendarAccess != .granted {
                     Button {
                         Task {
@@ -76,14 +76,14 @@ struct OnboardingView: View {
                             calendarAccess = CalendarWatcher.access
                         }
                     } label: {
-                        calendarAccess == .denied ? Text("Открыть Настройки") : Text("Разрешить")
+                        calendarAccess == .denied ? Text("Open Settings") : Text("Allow")
                     }
                 }
             }
 
             HStack {
                 Spacer()
-                Button("Готово") {
+                Button("Done") {
                     UserDefaults.standard.set(true, forKey: "onboardingDone")
                     dismiss()
                 }
@@ -129,7 +129,7 @@ struct OnboardingView: View {
         Task {
             let heard = await SystemAudioCheck.run()
             systemState = heard ? .ok : .failed(String(localized:
-                "Звук не дошёл. Разрешите Granula в «Настройки → Конфиденциальность → Запись экрана и системного звука → Только системный звук», затем «Проверить снова»."))
+                "No sound came through. Allow Granula in System Settings → Privacy & Security → Screen & System Audio Recording → System Audio Recording Only, then click “Check again”."))
         }
     }
 
@@ -142,7 +142,7 @@ struct OnboardingView: View {
                 }
                 modelState = .ok
             } catch {
-                modelState = .failed(String(localized: "Не загрузилась: \(error.localizedDescription)"))
+                modelState = .failed(String(localized: "Failed to load: \(error.localizedDescription)"))
             }
         }
     }

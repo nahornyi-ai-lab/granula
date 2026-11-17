@@ -1,7 +1,7 @@
 import GranulaCore
 import SwiftUI
 
-/// One column, like Granola: «Главная», or a meeting opened over the whole window.
+/// One column, like Granola: Home, or a meeting opened over the whole window.
 struct ContentView: View {
     @EnvironmentObject var model: AppModel
 
@@ -26,7 +26,7 @@ struct ContentView: View {
             ToolbarItem(placement: .navigation) {
                 if open != nil {
                     Button { model.selection = nil } label: {
-                        Label("Главная", systemImage: "chevron.left").labelStyle(.titleAndIcon)
+                        Label("Home", systemImage: "chevron.left").labelStyle(.titleAndIcon)
                     }
                     .keyboardShortcut("[", modifiers: .command)
                 }
@@ -44,7 +44,7 @@ extension View {
     }
 }
 
-/// «Новая встреча» pill; during a recording «Остановить · 12:34».
+/// "New meeting" pill; during a recording "Stop · 12:34".
 struct RecordButton: View {
     @EnvironmentObject var model: AppModel
 
@@ -55,9 +55,9 @@ struct RecordButton: View {
             HStack(spacing: 7) {
                 Circle().fill(model.isRecording ? Color.red : Theme.accent).frame(width: 8, height: 8)
                 if model.isRecording {
-                    Text("Остановить · \(Transcript.clock(model.snapshot?.elapsed ?? 0))").monospacedDigit()
+                    Text("Stop · \(Transcript.clock(model.snapshot?.elapsed ?? 0))").monospacedDigit()
                 } else {
-                    Text("Новая встреча")
+                    Text("New meeting")
                 }
             }
             .font(.system(size: 13))

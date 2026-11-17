@@ -51,8 +51,8 @@ final class PipelineTests: XCTestCase {
 
         XCTAssertLessThanOrEqual(themWER, 0.15, "far-end lines must be recognized")
         XCTAssertGreaterThanOrEqual(transcript.droppedEchoes, 1, "the echo was recognized and must be dropped")
-        // Only the Russian sentence may stay on the "Я" side: a kept echo would add Ukrainian/English words.
-        XCTAssertLessThanOrEqual(meWER, 0.2, "the owner's Russian line must be labeled Я, without echo")
+        // Only the Russian sentence may stay on the "Me" side: a kept echo would add Ukrainian/English words.
+        XCTAssertLessThanOrEqual(meWER, 0.2, "the owner's Russian line must be labeled Me, without echo")
     }
 
     // MARK: - Helpers
