@@ -16,6 +16,9 @@ struct GranulaApp: App {
                 .sheet(isPresented: $model.showOnboarding) {
                     OnboardingView().environmentObject(model)
                 }
+                .sheet(isPresented: $model.showTranslationSettings, onDismiss: { model.translationSettingsDismissed() }) {
+                    TranslationSettingsView().environmentObject(model)
+                }
         }
         .defaultSize(width: 1040, height: 680)
         .commands {
@@ -24,7 +27,9 @@ struct GranulaApp: App {
                 Button(model.recordMenuTitle) { model.toggleRecording() }
             }
             CommandGroup(after: .appSettings) {
-                Button("Permissions and model…") { model.showOnboarding = true }
+                // The sheets live on the main window, which may be closed.
+                OpenWindowButton(title: "Permissions and model…") { model.showOnboarding = true }
+                OpenWindowButton(title: "Translation…") { model.showTranslationSettings = true }
                 Button("Meetings folder…") { model.chooseFolder() }
                 LanguagePicker().environmentObject(model)
             }
@@ -55,6 +60,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 }
 
+/// Opens and brings forward the main window, then runs `action` (shows a sheet on it).
+struct OpenWindowButton: View {
+    let title: LocalizedStringKey
+    let action: () -> Void
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button(title) {
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+            action()
+        }
+    }
+}
+
 struct MenuBarContent: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.openWindow) private var openWindow
@@ -64,6 +84,8 @@ struct MenuBarContent: View {
             Text("Recording · \(Transcript.clock(snapshot.elapsed))")
         }
         Button(model.recordMenuTitle) { model.toggleRecording() }
+        // Shown when a recording starts; during one, it shows or hides the window.
+        Toggle("Live window", isOn: $model.liveSettings.window)
         Button("Open Granula") {
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
@@ -74,11 +96,8 @@ struct MenuBarContent: View {
         } else {
             Button("Connect calendar") { Task { await model.connectCalendar() } }
         }
-        Button("Permissions and model…") {
-            openWindow(id: "main")
-            NSApp.activate(ignoringOtherApps: true)
-            model.showOnboarding = true
-        }
+        OpenWindowButton(title: "Permissions and model…") { model.showOnboarding = true }
+        OpenWindowButton(title: "Translation…") { model.showTranslationSettings = true }
         Button("Meetings folder…") { model.chooseFolder() }
         LanguagePicker()
         Button("Quit") { NSApp.terminate(nil) }

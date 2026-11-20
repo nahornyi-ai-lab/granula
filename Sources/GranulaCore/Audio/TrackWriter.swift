@@ -25,6 +25,10 @@ public final class TrackWriter: @unchecked Sendable {
 
     public let url: URL
     private let start: Date
+    /// Everything written to the timeline — captured audio and the silence that fills
+    /// gaps — as 16 kHz mono samples with their position in seconds. For the live
+    /// transcript; set before capture starts. Runs under the writer's lock: keep it quick.
+    public var onAudio: ((UnsafeBufferPointer<Float>, TimeInterval) -> Void)?
     private let outFormat = AVAudioFormat(
         commonFormat: .pcmFormatFloat32, sampleRate: TrackWriter.sampleRate, channels: 1, interleaved: false)!
 
@@ -72,6 +76,7 @@ public final class TrackWriter: @unchecked Sendable {
 
             do {
                 try file.write(from: converted)
+                publish(converted, at: s.framesWritten)
                 s.framesWritten += AVAudioFramePosition(converted.frameLength)
             } catch {
                 Log.error("track.write_failed \(url.lastPathComponent)", error)
@@ -154,9 +159,15 @@ public final class TrackWriter: @unchecked Sendable {
                 Log.error("track.pad_failed \(url.lastPathComponent)", error)
                 return
             }
+            publish(silent, at: s.framesWritten)
             s.framesWritten += AVAudioFramePosition(n)
             remaining -= AVAudioFramePosition(n)
         }
+    }
+
+    private func publish(_ buffer: AVAudioPCMBuffer, at frame: AVAudioFramePosition) {
+        guard let onAudio, let data = buffer.floatChannelData else { return }
+        onAudio(UnsafeBufferPointer(start: data[0], count: Int(buffer.frameLength)), Double(frame) / Self.sampleRate)
     }
 
     static func peak(of buffer: AVAudioPCMBuffer) -> Float {

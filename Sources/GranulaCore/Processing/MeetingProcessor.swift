@@ -1,11 +1,15 @@
 import Foundation
 
 /// After-meeting pipeline, one meeting at a time:
-/// transcribe both tracks → lines → drop echoes → merge → compress audio → AI summary.
+/// transcribe both tracks → lines → drop echoes → merge → translate (when chosen)
+/// → compress audio → AI summary.
 /// Every step is resumable: on relaunch a meeting continues from what is on disk.
 @MainActor
 public final class MeetingProcessor {
     public var onUpdate: ((MeetingRecord) -> Void)?
+    /// The meeting languages for translating a transcript; nil: the owner's saved ones
+    /// (an E2E run sets its own).
+    public var meetingLanguages: [String]?
 
     private let store: MeetingStore
     private var queue: [URL] = []
@@ -100,6 +104,27 @@ public final class MeetingProcessor {
                 Log.error("transcript.failed", error)
                 record = update(record) { $0.status = .failed; $0.stage = nil; $0.error = String(localized: "Transcription failed: \(error.localizedDescription)") }
                 return
+            }
+        }
+
+        // 1b. Translation into the language chosen during the meeting. Optional:
+        // missing language packs or an older macOS skip it, never fail the meeting.
+        if let transcript, let target = record.meeting.translateTo, !transcript.segments.isEmpty,
+           !FileManager.default.fileExists(atPath: record.url(MeetingFile.translationJSON).path),
+           let translator = Translators.make(.best) {
+            record = update(record) { $0.stage = .translating }
+            let languages = LiveSettings.transcriptLanguages(
+                meetingFrom: record.meeting.translateFrom, meetingTo: target, target: target,
+                languages: meetingLanguages ?? LiveSettings.load().languages)
+            let outcome = await TranscriptTranslation.build(
+                transcript, to: target, languages: languages, translator: translator)
+            if let translation = outcome.translation {
+                do {
+                    try translation.jsonData().write(to: record.url(MeetingFile.translationJSON), options: .atomic)
+                    try store.write(translation.markdown(for: transcript), MeetingFile.translationMarkdown, of: record)
+                } catch {
+                    Log.error("translation.save_failed", error)
+                }
             }
         }
 

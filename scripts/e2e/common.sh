@@ -1,6 +1,8 @@
 # Shared helpers for E2E scripts (sourced).
 LOG=~/Library/Logs/Granula/granula.log
-APP=/Applications/Granula.app
+# The app under test; the owner's own app is the one reopened afterwards.
+APP=${GRANULA_APP:-/Applications/Granula.app}
+OWNER_APP=/Applications/Granula.app
 # Meetings folder: the one picked in "Meetings folder…", else the default.
 MEETINGS=$(defaults read ai.nahornyi.granula meetingsFolder 2>/dev/null || echo ~/Documents/Granula)
 mkdir -p ${LOG:h}; touch "$LOG"
@@ -16,7 +18,7 @@ quit_granula() {
 restore_granula() {
   quit_granula || true
   # LaunchServices needs a moment after a quit (otherwise open fails with -600).
-  for i in {1..5}; do sleep 1; open "$APP" 2>/dev/null && return 0; done
+  for i in {1..5}; do sleep 1; open "$OWNER_APP" 2>/dev/null && return 0; done
   echo "could not reopen Granula" >&2
 }
 

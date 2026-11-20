@@ -46,14 +46,21 @@ public final class Recorder {
     static let silentSystemTimeout: TimeInterval = 60
     static let silentMicTimeout: TimeInterval = 30
 
-    public init(record: MeetingRecord) throws {
+    /// `live` also gets both tracks, for the live transcript.
+    public init(record: MeetingRecord, live: LiveSession? = nil) throws {
         self.record = record
         self.startedAt = record.meeting.startedAt
         micWriter = try TrackWriter(url: record.url(MeetingFile.micRaw), start: startedAt)
         systemWriter = try TrackWriter(url: record.url(MeetingFile.systemRaw), start: startedAt)
+        if let live {
+            micWriter.onAudio = { live.feed(.me, $0, at: $1) }
+            systemWriter.onAudio = { live.feed(.them, $0, at: $1) }
+        }
     }
 
     public func start() async {
+        // Stopped before it started: nothing to begin, no tap left running.
+        guard !isStopped else { return }
         activity = ProcessInfo.processInfo.beginActivity(
             options: [.userInitiated, .idleSystemSleepDisabled], reason: "Granula records a meeting")
         startSystem()

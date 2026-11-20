@@ -1,3 +1,5 @@
+// XCTest comes with Xcode; with Command Line Tools only these tests are skipped.
+#if canImport(XCTest)
 import XCTest
 @testable import GranulaCore
 
@@ -30,3 +32,4 @@ final class TemplatesTests: XCTestCase {
         XCTAssertFalse(templates.contains { $0.name.isEmpty || $0.body.isEmpty })
     }
 }
+#endif

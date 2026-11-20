@@ -11,6 +11,10 @@ public actor Transcriber {
 
     private var manager: AsrManager?
     private var loading: Task<AsrManager, Error>?
+    /// One recognition at a time: the live transcript and the after-meeting
+    /// pass share the model, and an actor alone would interleave them at `await`.
+    private var busy = false
+    private var waiting: [CheckedContinuation<Void, Never>] = []
 
     public init() {}
 
@@ -55,11 +59,56 @@ public actor Transcriber {
             return []
         }
         try await prepare()
+        await acquire()
+        defer { release() }
         guard let manager else { throw ASRError.notInitialized }
         var state = TdtDecoderState.make(decoderLayers: await manager.decoderLayerCount)
         let result = try await manager.transcribe(url, decoderState: &state, language: nil)
         Log.event("asr.done", String(format: "file=%@ audio=%.1f rtfx=%.0f",
                                      url.lastPathComponent, result.duration, result.rtfx))
         return buildWordTimings(from: result.tokenTimings ?? [])
+    }
+
+    /// Word timings of 16 kHz mono samples (the live transcript's window).
+    /// Times are seconds from the first sample. Needs `prepare()` first.
+    public func words(in samples: [Float]) async throws -> [WordTiming] {
+        guard !samples.isEmpty else { return [] }
+        var samples = samples
+        // Shorter audio is rejected by the model; trailing silence changes no word.
+        let minimum = Int(ASRConstants.minimumAudioDurationSeconds * TrackWriter.sampleRate) + 1600
+        if samples.count < minimum { samples += [Float](repeating: 0, count: minimum - samples.count) }
+        await acquire()
+        defer { release() }
+        guard let manager else { throw ASRError.notInitialized }
+        var state = TdtDecoderState.make(decoderLayers: await manager.decoderLayerCount)
+        let result = try await manager.transcribe(samples, decoderState: &state, language: nil)
+        return buildWordTimings(from: result.tokenTimings ?? [])
+    }
+
+    private func acquire() async {
+        if busy {
+            await withCheckedContinuation { waiting.append($0) }
+        } else {
+            busy = true
+        }
+    }
+
+    /// Hands the model to the next caller, or frees it.
+    private func release() {
+        if waiting.isEmpty {
+            busy = false
+        } else {
+            waiting.removeFirst().resume()
+        }
+    }
+}
+
+extension Transcriber: SpeechRecognizing {
+    /// Loads the model for the live transcript; false when it is not downloaded
+    /// (a meeting never starts a 600 MB download).
+    public func load() async throws -> Bool {
+        guard manager != nil || Self.modelsPresent else { return false }
+        try await prepare()
+        return true
     }
 }

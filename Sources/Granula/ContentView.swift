@@ -4,6 +4,7 @@ import SwiftUI
 /// One column, like Granola: Home, or a meeting opened over the whole window.
 struct ContentView: View {
     @EnvironmentObject var model: AppModel
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         let open = model.record(id: model.selection)
@@ -22,6 +23,8 @@ struct ContentView: View {
         }
         .background(Theme.background)
         .tint(Theme.accent)
+        // So the model can bring the window back for a sheet after it was closed.
+        .onAppear { model.openMainWindow = { [openWindow] in openWindow(id: "main") } }
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 if open != nil {

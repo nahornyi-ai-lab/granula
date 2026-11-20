@@ -12,7 +12,7 @@ public struct Meeting: Codable, Identifiable, Equatable, Sendable {
     }
 
     public enum Stage: String, Codable, Sendable {
-        case transcribing, compressing, summarizing
+        case transcribing, translating, compressing, summarizing
     }
 
     public var id: String            // folder name at creation, stable
@@ -29,6 +29,11 @@ public struct Meeting: Codable, Identifiable, Equatable, Sendable {
     /// Calendar event the recording was started from, and its other attendees.
     public var calendarEventID: String?
     public var attendees: [String]?
+    /// Language the transcript is translated into after the meeting (the live
+    /// translation's language when the recording ended); nil: no translation.
+    public var translateTo: String?
+    /// The language translated from ("From" in the live window); nil: Auto, among the meeting languages.
+    public var translateFrom: String?
     public var micPeak: Float
     public var systemPeak: Float
     public var error: String?

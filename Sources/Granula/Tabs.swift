@@ -6,6 +6,8 @@ struct NotesEditor: View {
     @EnvironmentObject var model: AppModel
     let record: MeetingRecord
     @State private var text = ""
+    /// What notes.md holds as far as this editor knows: loading it never schedules a save.
+    @State private var savedText = ""
     @State private var loaded = false
     @State private var pendingSave: DispatchWorkItem?
 
@@ -26,14 +28,23 @@ struct NotesEditor: View {
             }
         }
         .onAppear {
-            text = model.store.read(MeetingFile.notes, of: record) ?? ""
+            let disk = model.store.read(MeetingFile.notes, of: record) ?? ""
+            savedText = disk
+            text = disk
             loaded = true
         }
         .onChange(of: text) { _, new in
             guard loaded else { return }
+            // The last text always wins: an edit undone within half a second cancels its save.
             pendingSave?.cancel()
+            pendingSave = nil
+            guard new != savedText else { return }
             let id = record.id
-            let work = DispatchWorkItem { model.saveNotes(new, for: id) }
+            let work = DispatchWorkItem {
+                savedText = new
+                pendingSave = nil
+                model.saveNotes(new, for: id)
+            }
             pendingSave = work
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
         }
@@ -46,6 +57,7 @@ struct NotesEditor: View {
         if let pendingSave {
             pendingSave.cancel()
             self.pendingSave = nil
+            savedText = text
             model.saveNotes(text, for: record.id)
         }
     }
@@ -98,23 +110,38 @@ struct SummaryTab: View {
 struct TranscriptTab: View {
     @EnvironmentObject var model: AppModel
     let record: MeetingRecord
+    @AppStorage("transcriptView") private var view = TranscriptView.both
+
+    enum TranscriptView: String, CaseIterable, Identifiable {
+        case original, translation, both
+        var id: String { rawValue }
+        var title: LocalizedStringKey {
+            switch self {
+            case .original: return "Original"
+            case .translation: return "Translation"
+            case .both: return "Both"
+            }
+        }
+    }
 
     var body: some View {
+        let _ = model.transcriptRevision
         if let transcript = Transcript.load(from: record.url(MeetingFile.transcriptJSON)) {
             if transcript.segments.isEmpty {
                 Text("No speech found in the recording.").foregroundStyle(.secondary).padding(28)
             } else {
+                let translation = TranscriptTranslation.load(from: record.url(MeetingFile.translationJSON))
+                    .flatMap { $0.lines.count == transcript.segments.count ? $0 : nil }
                 VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        Spacer()
-                        CopyButton(title: "Copy transcript") { model.copyTranscript(record) }
-                    }
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 10)
+                    toolbar(translation: translation)
+                        .padding(.horizontal, 28)
+                        .padding(.vertical, 10)
                     SnapshotFriendlyScroll {
                         LazyVStack(alignment: .leading, spacing: 12) {
-                            ForEach(Array(transcript.segments.enumerated()), id: \.offset) { _, segment in
-                                TranscriptLine(segment: segment)
+                            ForEach(Array(transcript.segments.enumerated()), id: \.offset) { i, segment in
+                                TranscriptLine(segment: segment,
+                                               translation: translation.flatMap { view == .original ? nil : $0.lines[i] },
+                                               translationOnly: view == .translation)
                             }
                         }
                         .textSelection(.enabled)
@@ -124,10 +151,69 @@ struct TranscriptTab: View {
                     }
                 }
             }
+        } else if let lines = LiveLog.load(from: record.url(MeetingFile.live))?.filter({ !$0.echo }), !lines.isEmpty {
+            // Until the transcript of the full recording is ready: what was heard live.
+            VStack(alignment: .leading, spacing: 0) {
+                Label("Live transcript. The full transcript replaces it when processing ends.", systemImage: "info.circle")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 10)
+                SnapshotFriendlyScroll {
+                    LazyVStack(alignment: .leading, spacing: 12) {
+                        ForEach(lines) { line in
+                            LiveLineView(speaker: line.speaker, start: line.start, text: line.text,
+                                         translation: line.translation, translating: false, partial: false)
+                        }
+                    }
+                    .textSelection(.enabled)
+                    .padding(.horizontal, 28)
+                    .padding(.bottom, 28)
+                    .frame(maxWidth: 820, alignment: .leading)
+                }
+            }
         } else {
             Text("The transcript will appear when the recording ends.").foregroundStyle(.secondary).padding(28)
         }
     }
+
+    private func toolbar(translation: TranscriptTranslation?) -> some View {
+        HStack(spacing: 10) {
+            if let translation {
+                Picker("", selection: $view) {
+                    ForEach(TranscriptView.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 300)
+                Text(verbatim: TranslationLanguages.name(translation.target))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            if model.translatingTranscripts.contains(record.id) {
+                ProgressView().controlSize(.small)
+                Text("Translating…").font(.callout).foregroundStyle(.secondary)
+            } else if TranslationLanguages.isAvailable {
+                Menu {
+                    ForEach(TranslationLanguages.targets, id: \.self) { code in
+                        Button(TranslationLanguages.name(code)) { model.translateTranscript(record, to: code) }
+                    }
+                } label: {
+                    Label(translation == nil ? "Translate" : "Translate again", systemImage: "translate")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .disabled(busy)
+            }
+            Spacer()
+            if translation != nil {
+                CopyButton(title: "Copy translation") { model.copyTranslation(record) }
+            }
+            CopyButton(title: "Copy transcript") { model.copyTranscript(record) }
+        }
+    }
+
+    private var busy: Bool { record.meeting.status == .processing || record.meeting.status == .recording }
 }
 
 /// Copies to the clipboard and shows "Copied" for a moment, so the click is visibly done.
@@ -149,6 +235,9 @@ struct CopyButton: View {
 
 struct TranscriptLine: View {
     let segment: Segment
+    /// The line in the translation language; nil when there is none or none was needed.
+    var translation: String? = nil
+    var translationOnly = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -160,7 +249,14 @@ struct TranscriptLine: View {
                 Text(segment.speaker.label)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(segment.speaker == .me ? Theme.accent : Color.purple)
-                Text(segment.text).font(.system(size: 14))
+                if let translation {
+                    if !translationOnly {
+                        Text(segment.text).font(.system(size: 13)).foregroundStyle(.secondary)
+                    }
+                    Text(translation).font(.system(size: 14))
+                } else {
+                    Text(segment.text).font(.system(size: 14))
+                }
             }
         }
     }

@@ -20,12 +20,15 @@ let package = Package(
         .target(
             name: "GranulaCore",
             dependencies: [.product(name: "FluidAudio", package: "FluidAudio")],
-            path: "Sources/GranulaCore"
+            path: "Sources/GranulaCore",
+            // On-device translation exists from macOS 15 (used from 26); weak, so 14.4 still launches.
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-weak_framework", "-Xlinker", "Translation"])]
         ),
         .executableTarget(
             name: "Granula",
             dependencies: ["GranulaCore"],
-            path: "Sources/Granula"
+            path: "Sources/Granula",
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-weak_framework", "-Xlinker", "_Translation_SwiftUI"])]
         ),
         .testTarget(
             name: "GranulaCoreTests",

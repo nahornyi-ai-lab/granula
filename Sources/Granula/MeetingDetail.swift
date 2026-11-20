@@ -52,7 +52,11 @@ struct MeetingDetail: View {
             Divider()
             Group {
                 switch isRecording ? .notes : tab {
-                case .notes: NotesEditor(record: record)
+                case .notes:
+                    // Full width: what is being said is in the Live window. The editor stays the
+                    // same view when the recording stops, so no typing is lost.
+                    NotesEditor(record: record)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 case .summary: SummaryTab(record: record)
                 case .transcript: TranscriptTab(record: record)
                 }
@@ -128,6 +132,11 @@ struct RecordingPanel: View {
                     LevelMeter(label: "Them", level: snapshot.systemLevel, state: snapshot.systemState)
                 }
                 Spacer()
+                Toggle(isOn: $model.liveSettings.window) {
+                    Label("Live window", systemImage: "text.bubble")
+                }
+                .toggleStyle(.button)
+                .help("What is being said and its translation, in a window over other apps")
                 Button(role: .destructive) {
                     model.stopRecording(reason: "user")
                 } label: {
@@ -213,6 +222,7 @@ struct StatusBanner: View {
     private var stageText: String {
         switch record.meeting.stage {
         case .transcribing: return String(localized: "Transcribing…")
+        case .translating: return String(localized: "Translating the transcript…")
         case .compressing: return String(localized: "Compressing audio…")
         case .summarizing: return String(localized: "Writing the summary…")
         case nil: return String(localized: "Waiting to be processed…")

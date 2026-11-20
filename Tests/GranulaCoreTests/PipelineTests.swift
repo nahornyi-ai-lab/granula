@@ -1,3 +1,5 @@
+// XCTest comes with Xcode; with Command Line Tools only these tests are skipped.
+#if canImport(XCTest)
 import AVFoundation
 import XCTest
 @testable import GranulaCore
@@ -106,3 +108,4 @@ final class PipelineTests: XCTestCase {
         return Double(prev[h.count]) / Double(r.count)
     }
 }
+#endif

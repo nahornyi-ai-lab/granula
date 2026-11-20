@@ -20,6 +20,22 @@ final class AppModel: ObservableObject {
     }
     static let remindersKey = "calendarReminders"
     @Published private(set) var language = AppLanguage.chosen
+    /// The live transcript of the current recording.
+    @Published private(set) var live: LiveSnapshot?
+    @Published var liveSettings = LiveSettings.load() {
+        didSet { liveSettingsChanged(from: oldValue) }
+    }
+    @Published var showTranslationSettings = false
+    /// A language the Translation sheet also offers packs for (a transcript translated on request),
+    /// from `translationSettingsSources`.
+    @Published var translationSettingsTarget: String?
+    @Published var translationSettingsSources: [String] = []
+    /// Opens the main window (set by the app, which has SwiftUI's openWindow); sheets live there.
+    var openMainWindow: (() -> Void)?
+    /// Meetings whose transcript is being translated on request.
+    @Published private(set) var translatingTranscripts: Set<String> = []
+    /// Bumped when a meeting's transcript files change outside processing (live log done, translation).
+    @Published private(set) var transcriptRevision = 0
 
     let store = MeetingStore(root: UserDefaults.standard.string(forKey: AppModel.folderKey)
         .map { URL(fileURLWithPath: $0, isDirectory: true) })
@@ -28,6 +44,8 @@ final class AppModel: ObservableObject {
     private let callDetector = CallDetector()
     private let callPanel = CallPromptPanel()
     private var recorder: Recorder?
+    private var liveSession: LiveSession?
+    private let liveWindow = LiveWindow()
     private var recordingCallFamily: String?
     private var ticker: Timer?
     private var sleepObserver: NSObjectProtocol?
@@ -75,6 +93,17 @@ final class AppModel: ObservableObject {
         if !e2e.isActive && !UserDefaults.standard.bool(forKey: "onboardingDone") {
             showOnboarding = true
         }
+        // E2E runs set the whole pair (unset: Don't translate, Auto) and the meeting languages,
+        // so the owner's own choices never leak into a test. The target first: From needs a To.
+        if e2e.isActive {
+            liveSettings.target = e2e.translate
+            liveSettings.source = e2e.translateFrom
+            if let languages = e2e.languages {
+                liveSettings.languages = languages
+                processor.meetingLanguages = languages
+            }
+        }
+        if e2e.liveWindow { liveSettings.window = true }
         if e2e.start {
             Task { await startRecording() }
         }
@@ -104,10 +133,19 @@ final class AppModel: ObservableObject {
             if let linked {
                 record.meeting.calendarEventID = linked.eventID
                 record.meeting.attendees = linked.attendees.isEmpty ? nil : linked.attendees
-                try store.save(record)
             }
-            let recorder = try Recorder(record: record)
+            // The pair goes with the meeting: its transcript is translated the same way afterwards.
+            record.meeting.translateTo = TranslationLanguages.isAvailable ? liveSettings.target : nil
+            record.meeting.translateFrom = record.meeting.translateTo == nil ? nil : liveSettings.source
+            try store.save(record)
+            let session = LiveSession(
+                folder: record.folder, startedAt: record.meeting.startedAt,
+                languages: liveSettings.detectionLanguages, target: liveSettings.target,
+                recognizer: Transcriber.shared, translator: Translators.make(.live))
+            let recorder = try Recorder(record: record, live: session)
             self.recorder = recorder
+            liveSession = session
+            live = LiveSnapshot()
             recordingFromCalendar = event != nil
             // Auto-stop only follows a call that is still on the microphone.
             recordingCallFamily = callApp.flatMap { callDetector.activeNow.contains($0.family) ? $0.family : nil }
@@ -116,21 +154,43 @@ final class AppModel: ObservableObject {
             }
             meetings.insert(record, at: 0)
             selection = record.id
-            await recorder.start()
-            // Stopped while start was waiting (permission prompt, sleep): nothing more to set up.
+            // Weak: the session keeps this closure, and it must not keep the session after the meeting.
+            await session.setOnChange { [weak session] snapshot in
+                guard let session else { return }
+                Task { @MainActor in AppModel.shared.liveChanged(snapshot, from: session) }
+            }
+            // Each await below may let a Stop in (hot key, sleep, quit): stopRecording has then
+            // saved and queued the meeting, and nothing more is set up.
             guard self.recorder === recorder else { return }
+            await recorder.start()
+            guard self.recorder === recorder else { return }
+            await session.start()
+            guard self.recorder === recorder else { return }
+            if liveSettings.window { showLiveWindow() }
+            if let folder = e2e.liveSnapshotFolder { takeLiveSnapshots(to: folder, while: recorder) }
             snapshot = recorder.snapshot
             ticker = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
                 MainActor.assumeIsolated { self?.tick() }
             }
-            if let seconds = e2e.stopAfter {
-                DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in
-                    self?.stopRecording(reason: "e2e")
-                }
-            }
+            if let seconds = e2e.stopAfter { stopForE2E(after: seconds, recorder: recorder) }
         } catch {
             Log.error("recording.start_failed", error)
             presentError(String(localized: "Couldn't start recording: \(error.localizedDescription)"))
+        }
+    }
+
+    /// E2E auto-stop. It counts from the moment the speech model is loaded (or failed to),
+    /// so a slow first load does not cut off the audio a test plays after `live.ready`.
+    private func stopForE2E(after seconds: TimeInterval, recorder: Recorder) {
+        Task { [weak self] in
+            for _ in 0..<900 {
+                guard let self, self.recorder === recorder else { return }
+                if let status = self.live?.status, status != .loadingModel { break }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            try? await Task.sleep(for: .seconds(seconds))
+            guard let self, self.recorder === recorder else { return }
+            self.stopRecording(reason: "e2e")
         }
     }
 
@@ -140,6 +200,7 @@ final class AppModel: ObservableObject {
         ticker = nil
         let peaks = recorder.stop()
         self.recorder = nil
+        finishLive(folder: recorder.record.folder)
         if let family = recordingCallFamily { callDetector.markHandled(family) }
         recordingCallFamily = nil
         recordingFromCalendar = false
@@ -162,6 +223,127 @@ final class AppModel: ObservableObject {
             Log.event("recording.autostop", "app=\(family)")
             stopRecording(reason: "call_ended")
         }
+    }
+
+    // MARK: - Live transcript
+
+    private func liveChanged(_ snapshot: LiveSnapshot, from session: LiveSession) {
+        guard liveSession === session else { return }
+        live = snapshot
+    }
+
+    /// The phrases in progress become lines and the log is closed after the recording.
+    private func finishLive(folder: URL) {
+        liveWindow.hide()
+        live = nil
+        guard let session = liveSession else { return }
+        liveSession = nil
+        Task {
+            await session.finish()
+            transcriptRevision += 1
+        }
+    }
+
+    private func liveSettingsChanged(from old: LiveSettings) {
+        // From equal to To is Auto: there is nothing to translate from the target language.
+        // (Set inside its own didSet, it does not call this again; the code below sees it.)
+        if let source = liveSettings.source, let target = liveSettings.target, TranslationLanguages.same(source, target) {
+            liveSettings.source = nil
+        }
+        // E2E runs set their own choices; the owner's stay as they were.
+        if !e2e.isActive { liveSettings.save() }
+        guard isRecording else { return }
+        if liveSettings.window != old.window {
+            if liveSettings.window { showLiveWindow() } else { liveWindow.hide() }
+        }
+        let languages = liveSettings.detectionLanguages
+        if liveSettings.target != old.target || languages != old.detectionLanguages {
+            let target = liveSettings.target
+            Log.event("live.languages", "from=\(liveSettings.source ?? "auto") to=\(target ?? "off") detect=\(languages.joined(separator: ","))")
+            // One task: the languages and the target reach the session together.
+            let session = liveSession
+            Task { await session?.update(target: target, languages: languages) }
+        }
+        if liveSettings.target != old.target || liveSettings.source != old.source,
+           let folder = recorder?.record.folder, var current = store.load(folder: folder) {
+            // From is off without a To: a greyed-out From must not decide the transcript's translation.
+            current.meeting.translateTo = TranslationLanguages.isAvailable ? liveSettings.target : nil
+            current.meeting.translateFrom = current.meeting.translateTo == nil ? nil : liveSettings.source
+            try? store.save(current)
+        }
+    }
+
+    private func showLiveWindow() {
+        liveWindow.show(model: self) { [weak self] in self?.liveSettings.window = false }
+    }
+
+    // MARK: - Translation
+
+    /// Translates a finished meeting's transcript into `target` (the Transcript tab's "Translate").
+    func translateTranscript(_ record: MeetingRecord, to target: String) {
+        guard !translatingTranscripts.contains(record.id),
+              let transcript = Transcript.load(from: record.url(MeetingFile.transcriptJSON)),
+              let translator = Translators.make(.best) else { return }
+        translatingTranscripts.insert(record.id)
+        // The meeting's From → To: a meeting set to English → Russian tells its lines between the
+        // two, and the new target too when it is a third language.
+        let languages = LiveSettings.transcriptLanguages(
+            meetingFrom: record.meeting.translateFrom, meetingTo: record.meeting.translateTo, target: target,
+            languages: liveSettings.languages)
+        Task {
+            let outcome = await TranscriptTranslation.build(transcript, to: target, languages: languages, translator: translator)
+            translatingTranscripts.remove(record.id)
+            guard let translation = outcome.translation else {
+                presentMissingLanguages(outcome.missing, target: target)
+                return
+            }
+            // The meeting may have been renamed (its folder moved) while this ran.
+            let latest = meetings.first { $0.id == record.id } ?? record
+            let current = store.load(folder: latest.folder) ?? latest
+            do {
+                try translation.jsonData().write(to: current.url(MeetingFile.translationJSON), options: .atomic)
+                try store.write(translation.markdown(for: transcript), MeetingFile.translationMarkdown, of: current)
+            } catch {
+                presentError(String(localized: "Couldn't save the translation: \(error.localizedDescription)"))
+                return
+            }
+            // translateTo/translateFrom stay the pair the meeting was recorded with (translation.json
+            // has this translation's own target), so a later translation still knows the pair.
+            replace(current)
+            transcriptRevision += 1
+            if !outcome.missing.isEmpty { presentMissingLanguages(outcome.missing, target: target) }
+        }
+    }
+
+    private func presentMissingLanguages(_ missing: [String], target: String) {
+        guard !missing.isEmpty else {
+            presentError(String(localized: "Couldn't translate the transcript."))
+            return
+        }
+        let alert = NSAlert()
+        let pairs = missing.map { "\(TranslationLanguages.name($0)) → \(TranslationLanguages.name(target))" }
+        alert.messageText = String(localized: "Download the languages to translate")
+        alert.informativeText = String(localized: "Not downloaded yet: \(pairs.joined(separator: ", ")).")
+        alert.addButton(withTitle: String(localized: "Download…"))
+        alert.addButton(withTitle: String(localized: "Later"))
+        if alert.runModal() == .alertFirstButtonReturn {
+            presentTranslationSettings(target: target, sources: missing)
+        }
+    }
+
+    /// Translation…, also with the packs a transcript's translation is missing (`target`, `sources`).
+    /// The sheet lives on the main window, which may be closed or behind the call.
+    func presentTranslationSettings(target: String? = nil, sources: [String] = []) {
+        openMainWindow?()
+        NSApp.activate(ignoringOtherApps: true)
+        translationSettingsTarget = target
+        translationSettingsSources = sources
+        showTranslationSettings = true
+    }
+
+    func translationSettingsDismissed() {
+        translationSettingsTarget = nil
+        translationSettingsSources = []
     }
 
     // MARK: - Call prompt
@@ -344,6 +526,8 @@ final class AppModel: ObservableObject {
 
     func copyTranscript(_ record: MeetingRecord) { copy(MeetingFile.transcriptMarkdown, of: record) }
 
+    func copyTranslation(_ record: MeetingRecord) { copy(MeetingFile.translationMarkdown, of: record) }
+
     private func copy(_ file: String, of record: MeetingRecord) {
         guard let text = store.read(file, of: record) else { return }
         NSPasteboard.general.clearContents()
@@ -426,8 +610,27 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// `--e2e-live-snapshots <folder>`: the meeting window and the Live window
+    /// every 5 s while recording, to see the live transcript as the owner does.
+    private func takeLiveSnapshots(to folder: URL, while recorder: Recorder) {
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        Task { @MainActor in
+            var n = 1
+            while self.recorder === recorder {
+                try? await Task.sleep(for: .seconds(5))
+                guard self.recorder === recorder else { break }
+                snapshotWindow(to: folder.appendingPathComponent("live-\(n).png"))
+                if liveWindow.snapshot(to: folder.appendingPathComponent("window-\(n).png")) {
+                    Log.event("e2e.snapshot", "file=window-\(n).png")
+                }
+                n += 1
+            }
+        }
+    }
+
+    /// The main window: titled and not a panel (the Live window, the call prompt).
     private func snapshotWindow(to url: URL) {
-        guard let window = NSApp.windows.first(where: { $0.isVisible && $0.styleMask.contains(.titled) }),
+        guard let window = NSApp.windows.first(where: { $0.isVisible && $0.styleMask.contains(.titled) && !($0 is NSPanel) }),
               let view = window.contentView?.superview ?? window.contentView,
               let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
             Log.event("e2e.snapshot_failed", "file=\(url.lastPathComponent)")
@@ -445,9 +648,31 @@ struct E2EOptions {
     let stopAfter: TimeInterval?
     let acceptCallPrompt: Bool
     let snapshotFolder: URL?
-    var isActive: Bool { start || stopAfter != nil || acceptCallPrompt || snapshotFolder != nil }
+    /// Live transcript checks: translate from → into these languages, show the Live window,
+    /// snapshot while recording.
+    let translate: String?
+    let translateFrom: String?
+    /// `--e2e-languages ru,en,uk,es`: the meeting languages (Auto tells a line's language among them).
+    let languages: [String]?
+    let liveWindow: Bool
+    let liveSnapshotFolder: URL?
+    var isActive: Bool {
+        start || stopAfter != nil || acceptCallPrompt || snapshotFolder != nil
+            || translate != nil || translateFrom != nil || languages != nil || liveWindow || liveSnapshotFolder != nil
+    }
 
     init(arguments: [String]) {
+        func value(_ flag: String) -> String? {
+            guard let i = arguments.firstIndex(of: flag), i + 1 < arguments.count else { return nil }
+            return arguments[i + 1]
+        }
+        translate = value("--e2e-translate")
+        translateFrom = value("--e2e-translate-from")
+        languages = value("--e2e-languages").map { list in
+            TranslationLanguages.spoken.filter(list.split(separator: ",").map(String.init).contains)
+        }.flatMap { $0.isEmpty ? nil : $0 }
+        liveWindow = arguments.contains("--e2e-live-window")
+        liveSnapshotFolder = value("--e2e-live-snapshots").map { URL(fileURLWithPath: $0) }
         start = arguments.contains("--e2e-start")
         acceptCallPrompt = arguments.contains("--e2e-accept-call-prompt")
         if let i = arguments.firstIndex(of: "--e2e-stop-after"), i + 1 < arguments.count {

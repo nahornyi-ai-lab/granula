@@ -1,3 +1,5 @@
+// XCTest comes with Xcode; with Command Line Tools only these tests are skipped.
+#if canImport(XCTest)
 import XCTest
 @testable import GranulaCore
 
@@ -46,3 +48,4 @@ final class CalendarRulesTests: XCTestCase {
         XCTAssertEqual(linked?.attendees.count, 3)
     }
 }
+#endif

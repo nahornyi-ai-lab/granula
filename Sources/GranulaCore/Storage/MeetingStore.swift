@@ -7,6 +7,11 @@ public enum MeetingFile {
     public static let summary = "summary.md"
     public static let transcriptMarkdown = "transcript.md"
     public static let transcriptJSON = "transcript.json"
+    /// Lines of the live transcript, written during the meeting.
+    public static let live = "live.jsonl"
+    /// The transcript translated after the meeting (`TranscriptTranslation`).
+    public static let translationJSON = "transcript.translation.json"
+    public static let translationMarkdown = "transcript.translated.md"
     public static let micRaw = "mic.caf"
     public static let systemRaw = "system.caf"
     public static let micAudio = "mic.m4a"
