@@ -662,6 +662,11 @@ struct E2EOptions {
     }
 
     init(arguments: [String]) {
+        // Only local builds (scripts/build-app.sh without --release) define GRANULA_E2E;
+        // a release build ignores every flag, so nothing can start a recording from the command line.
+        #if !GRANULA_E2E
+        let arguments: [String] = []
+        #endif
         func value(_ flag: String) -> String? {
             guard let i = arguments.firstIndex(of: flag), i + 1 < arguments.count else { return nil }
             return arguments[i + 1]
