@@ -145,8 +145,8 @@ Sources: [where Granola runs](https://www.granola.ai/blog/local-first-ai-notetak
 
 ## Install
 
-**Download** (Apple Silicon only). Get `Granula.zip` from the [latest release](https://github.com/nahornyi-ai-lab/granula/releases/latest),
-unzip it and move **Granula** to **Applications**. Granula is alpha and not notarized by Apple yet, so
+**Download** (Apple Silicon only). Get `Granula.dmg` from the [latest release](https://github.com/nahornyi-ai-lab/granula/releases/latest),
+open it and drag **Granula** to **Applications**. Granula is alpha and not notarized by Apple yet, so
 the first time macOS refuses to open it: open **System Settings → Privacy & Security**, scroll down and
 click **Open Anyway** next to Granula. You do this once per version; macOS also asks again for the
 microphone and system audio.
