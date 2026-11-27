@@ -34,8 +34,9 @@ Recording, transcription and translation stay on your Mac.</p>
   never leave your Mac.
 - **A bot in the call feels wrong.** Nobody sees *"Notetaker has joined the meeting"*. Granula
   records your Mac, not the meeting.
-- **Your calls mix languages.** Russian with English terms, Ukrainian with English, in one sentence.
-  On that mixed speech Granula gets about 18% of words wrong; Whisper gets 41–45% ([benchmark](#why-parakeet)).
+- **Your calls mix languages.** English terms in the middle of a sentence in another language, the way
+  international teams really talk. On mixed speech Granula gets about 19% of words wrong; Whisper gets
+  45% ([benchmark](#why-parakeet)).
 - **Some calls are not in your language.** The Live window floats over Zoom or Meet and puts a
   translation under every phrase about a second after it is said.
 - **You want notes you own.** Plain Markdown in a folder you pick: open it in Obsidian, sync it,
@@ -83,7 +84,7 @@ mic hears the other side too — Granula drops those echoes so each phrase is at
 
 **3 · Live, as it is said — and translated.** The **Live window** floats over the call with the
 conversation so far: each phrase appears about a second after the speaker pauses. Pick
-**From → To** in its header — say English → Russian or Spanish → Russian — and every line shows the
+**From → To** in its header — say Spanish → English or English → Spanish — and every line shows the
 original small with the translation under it, made on the Mac by macOS's own translation models
 (macOS 26+). Lines already in your language stay as they are.
 
@@ -98,9 +99,8 @@ questions and key numbers, and folds in what you typed during the call.
 
 - **Knows your calendar.** Upcoming meetings for the next 5 days, a reminder a minute before each one,
   and every recording made during a meeting takes its title and participants. Read-only access.
-- **Many languages.** Speech in 25 European languages (Parakeet v3), measured on Russian, Ukrainian
-  and English. Translation into 20 languages, Chinese, Japanese, Korean and Arabic among them.
-  Interface in English, Russian, Ukrainian and Spanish.
+- **Many languages.** Speech in 25 European languages (Parakeet v3), English and Spanish among them.
+  Translation into 20 languages, Chinese, Japanese, Korean and Arabic among them.
 
 ## What runs where
 
@@ -163,16 +163,16 @@ End-to-end scripts that drive the real app live in [`scripts/e2e/`](scripts/e2e/
 
 ## Why Parakeet
 
-Before writing the app we measured 17 configurations of 7 speech-to-text engines on Russian, Ukrainian and English —
-clean speech, call-quality audio, long recordings and code-switching (Russian/Ukrainian + English
-in one sentence). Parakeet TDT v3 Ultra was the only engine that stayed accurate on all three
-languages *and* on mixed speech, while transcribing an hour of audio in about 10 seconds.
+Before writing the app we measured 17 configurations of 7 speech-to-text engines on clean speech,
+call-quality audio, long recordings and code-switching — English mixed into a sentence in another
+language. Parakeet TDT v3 Ultra was the only engine that stayed accurate on single-language *and*
+mixed speech, while transcribing an hour of audio in about 10 seconds.
 
-| WER, lower is better | call ru | call uk | call en | mixed ru+en | mixed uk+en | speed |
-|---|---|---|---|---|---|---|
-| **Parakeet TDT v3 Ultra** | **6.3%** | **10.1%** | **5.7%** | **18.3%** | **18.7%** | ~400× real time |
-| Whisper large-v3 turbo | 4.7% | 6.9% | 5.1% | 40.6% | 44.6% | slower, drifts on long audio |
-| Apple on-device dictation | 11.0% | 15.0% | 13.3% | 63.5% | 53.0% | fast |
+| WER, lower is better | call, English | call, Ukrainian | mixed Ukrainian + English | speed |
+|---|---|---|---|---|
+| **Parakeet TDT v3 Ultra** | **5.7%** | **10.1%** | **18.7%** | ~400× real time |
+| Whisper large-v3 turbo | 5.1% | 6.9% | 44.6% | slower, drifts on long audio |
+| Apple on-device dictation | 13.3% | 15.0% | 53.0% | fast |
 
 Full results, scripts and the method: [`bench/`](bench/) and
 [`bench/results/score_report.md`](bench/results/score_report.md).
@@ -181,11 +181,12 @@ Full results, scripts and the method: [`bench/`](bench/) and
 
 I'm **Vadym Nahornyi**, an AI engineer in Valencia, Spain. At [Nahornyi AI Lab](https://nahornyi.ai)
 I build AI agents and process automation for businesses, so my days are calls with clients.
-Those calls switch between Russian, Ukrainian and English, often within one sentence, and more and
-more of them are in Spanish. I wanted notes from all of them without sending my clients'
-conversations to someone else's cloud — and Whisper-based tools got four words in ten wrong in
-exactly those mixed sentences. So I measured seven speech engines, kept the one that held up, and
-built the app around it. I use Granula for my own meetings every day.
+Those calls run in several languages and often switch mid-sentence, and more and more of them are
+in Spanish. I wanted notes from all of them without sending my clients' conversations to someone
+else's cloud — and Whisper-based tools got more than four words in ten wrong on mixed speech. So I
+measured seven speech engines, kept the one that held up, and built the app around it. Then came
+live translation, for calls where not everyone speaks the same language. I use Granula for my own
+meetings every day.
 
 If Granula saves you a page of notes, a ⭐ helps other people find it. Bugs and ideas:
 [open an issue](https://github.com/nahornyi-ai-lab/granula/issues).
@@ -201,13 +202,13 @@ Sources/GranulaCore   recording, call detection, calendar, transcription, live t
                       echo filter, summaries, storage
 Sources/Granula       SwiftUI app: home screen, meeting view, Live window, menu bar,
                       call panel, onboarding, translation settings
-Resources             icon, Info.plist, translations (en, ru, uk, es)
+Resources             icon, Info.plist, interface translations
 scripts               app build, icon render, string checks, end-to-end tests
 bench                 speech-to-text benchmark
 ```
 
 Interface strings are written in English in code and serve as translation keys;
-`scripts/check-strings.py` checks that every key has a Russian, Ukrainian and Spanish translation.
+`scripts/check-strings.py` checks that every key is translated into every interface language.
 
 ## Credits
 
