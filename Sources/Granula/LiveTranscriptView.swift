@@ -3,6 +3,7 @@ import SwiftUI
 
 /// The Live window's content: From → To, what the transcript is waiting for, then
 /// the lines, each with its translation under it, and the phrase being spoken in grey.
+/// With hints on, the hints column on the right.
 struct LiveTranscriptView: View {
     @EnvironmentObject var model: AppModel
     @State private var follow = true
@@ -10,17 +11,27 @@ struct LiveTranscriptView: View {
 
     var body: some View {
         let live = model.live ?? LiveSnapshot()
-        VStack(alignment: .leading, spacing: 0) {
-            LanguagePairPicker()
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 8) {
+                    LanguagePairPicker()
+                    HintsToggle()
+                }
                 .padding(.horizontal, 14)
                 .padding(.top, 10)
                 .padding(.bottom, 6)
-            LiveStatusLine(live: live)
-                .padding(.horizontal, 14)
-            Divider().padding(.top, 6)
-            lines(live)
+                LiveStatusLine(live: live)
+                    .padding(.horizontal, 14)
+                Divider().padding(.top, 6)
+                lines(live)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if model.hintSettings.enabled {
+                Divider()
+                HintsColumn()
+                    .frame(width: LiveWindow.hintsWidth)
+            }
         }
-        .frame(minWidth: LiveWindow.minSize.width, minHeight: LiveWindow.minSize.height)
         .background(Theme.background)
     }
 
@@ -239,5 +250,143 @@ struct LiveStatusLine: View {
             .font(.caption)
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// The lightbulb in the header: the hints column on or off.
+struct HintsToggle: View {
+    @EnvironmentObject var model: AppModel
+
+    var body: some View {
+        let on = model.hintSettings.enabled
+        Button {
+            model.hintSettings.enabled.toggle()
+        } label: {
+            Image(systemName: on ? "lightbulb.fill" : "lightbulb")
+                .foregroundStyle(on ? Theme.accent : .secondary)
+        }
+        .buttonStyle(.borderless)
+        .help("Hints")
+        .accessibilityLabel(Text("Hints"))
+    }
+}
+
+/// Suggested replies, newest on top: what the other side said, then what the owner can say,
+/// and its translation when the turn was in another language.
+struct HintsColumn: View {
+    @EnvironmentObject var model: AppModel
+
+    var body: some View {
+        let snapshot = model.hints ?? HintsSnapshot()
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Hints").font(.headline)
+                Spacer(minLength: 0)
+                Button {
+                    model.presentHintsSettings()
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .buttonStyle(.borderless)
+                .help("Hints…")
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 12)
+            .padding(.bottom, 6)
+            if let error = snapshot.judgeError {
+                Text(error.message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 6)
+            }
+            Divider()
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 18) {
+                    if !model.hasHintKey {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Add your OpenRouter API key to get hints")
+                                .foregroundStyle(.secondary)
+                            Button("Hints…") { model.presentHintsSettings() }
+                                .controlSize(.small)
+                        }
+                        .padding(.top, 8)
+                    } else if snapshot.hints.isEmpty {
+                        Text("Hints appear here when the other side expects your reply.")
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, 8)
+                    }
+                    ForEach(snapshot.hints.reversed()) { hint in
+                        HintCard(hint: hint)
+                    }
+                }
+                .textSelection(.enabled)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .frame(maxHeight: .infinity)
+    }
+}
+
+/// One hint: when and what they said (small, grey, the end of a long turn), then the reply.
+struct HintCard: View {
+    let hint: LiveHint
+    /// About three lines of caption text in the column.
+    private static let saidLimit = 160
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(Transcript.clock(hint.start))
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                // The end of a long turn, where the question usually is.
+                Text(hint.said.count > Self.saidLimit ? "…" + hint.said.suffix(Self.saidLimit) : hint.said)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+            }
+            if !hint.text.isEmpty {
+                Text(hint.text)
+                    .font(.system(size: 16))
+                    .foregroundStyle(hint.state == .writing ? .secondary : .primary)
+            }
+            if let translation = hint.translation {
+                Text(translation)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+            switch hint.state {
+            case .writing where hint.text.isEmpty:
+                Text("Writing…")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.tertiary)
+            case .failed(let error):
+                Label(error.message, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            default:
+                EmptyView()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+extension HintError {
+    /// What the hints column and Hints… say about it.
+    var message: String {
+        switch self {
+        case .keyRejected: return String(localized: "The OpenRouter key was rejected — check it in Hints…")
+        case .noCredits: return String(localized: "OpenRouter is out of credits")
+        case .unknownModel(let id): return String(localized: "Unknown model: \(id)")
+        case .busy: return String(localized: "The model is busy — no hint this time")
+        case .offline: return String(localized: "No connection — no hint this time")
+        case .keyUnavailable: return String(localized: "Couldn't read the saved key — save it again in Hints…")
+        }
     }
 }

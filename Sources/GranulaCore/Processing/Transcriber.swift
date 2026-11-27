@@ -82,7 +82,28 @@ public actor Transcriber {
         guard let manager else { throw ASRError.notInitialized }
         var state = TdtDecoderState.make(decoderLayers: await manager.decoderLayerCount)
         let result = try await manager.transcribe(samples, decoderState: &state, language: nil)
-        return buildWordTimings(from: result.tokenTimings ?? [])
+        return buildWordTimings(from: Self.untimedClosingPunctuation(result.tokenTimings ?? []))
+    }
+
+    /// While it finishes a window the decoder stamps a closing period at the window's last frame,
+    /// so "it." would end where the window ends and the pause after it would never be seen: a short
+    /// phrase stayed unfinished until the next one began. Punctuation that ends a word takes no time
+    /// of its own; punctuation that opens one ("¿") keeps its time.
+    static func untimedClosingPunctuation(_ tokens: [TokenTiming]) -> [TokenTiming] {
+        var result: [TokenTiming] = []
+        result.reserveCapacity(tokens.count)
+        for token in tokens {
+            let core = token.token.trimmingCharacters(in: .whitespaces)
+            let closing = !token.token.hasPrefix(" ") && !token.token.hasPrefix("▁") && !core.isEmpty
+                && core.unicodeScalars.allSatisfy(CharacterSet.punctuationCharacters.contains)
+            if closing, let previous = result.last {
+                result.append(TokenTiming(token: token.token, tokenId: token.tokenId, startTime: previous.endTime,
+                                          endTime: previous.endTime, confidence: token.confidence))
+            } else {
+                result.append(token)
+            }
+        }
+        return result
     }
 
     private func acquire() async {

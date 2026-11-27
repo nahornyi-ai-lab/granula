@@ -6,8 +6,8 @@
 Even when the call is in a language you are still learning.</p>
 
 <p align="center">A free, open-source AI notetaker for Mac. It hears both sides of any call without a bot joining,<br>
-shows every phrase live with a translation into your language, and when the call ends<br>
-leaves one clear note: what was decided, who does what, by when.<br>
+shows every phrase live with a translation into your language, suggests what to say when it is your turn,<br>
+and when the call ends leaves one clear note: what was decided, who does what, by when.<br>
 Recording, transcription and translation stay on your Mac.</p>
 
 <p align="center">
@@ -39,6 +39,9 @@ Recording, transcription and translation stay on your Mac.</p>
   45% ([benchmark](#why-parakeet)).
 - **Some calls are not in your language.** The Live window floats over Zoom or Meet and puts a
   translation under every phrase about a second after it is said.
+- **You want a prompt when it is your turn.** When the other side asks you something, a suggested
+  reply appears next to the transcript a few seconds after they stop — in their language, with a translation
+  into yours. Optional, with your own OpenRouter key.
 - **You want notes you own.** Plain Markdown in a folder you pick: open it in Obsidian, sync it,
   grep it, or let Claude Code read it.
 
@@ -88,11 +91,19 @@ conversation so far: each phrase appears about a second after the speaker pauses
 original small with the translation under it, made on the Mac by macOS's own translation models
 (macOS 26+). Lines already in your language stay as they are.
 
-**4 · Transcribed on your Mac.** After the call, [Parakeet TDT 0.6B v3](https://huggingface.co/FluidInference/parakeet-ultra-coreml)
+**4 · A hint when it is your turn (optional).** Add an [OpenRouter](https://openrouter.ai) key in
+**Hints…**; the lightbulb in the Live window shows or hides the hints column. When the other side stops talking, a decision
+model (Bison by default) answers one question in a fraction of a second: does this expect a reply from
+you? Only on yes, Claude Haiku writes what you can say — one to three sentences in the speaker's
+language, using only the conversation, your notes and what you wrote in **About me**, with a
+translation under it. *"Okay, got it"* gets no hint; *"Tell me about your timeline"* does, even
+without a question mark.
+
+**5 · Transcribed on your Mac.** After the call, [Parakeet TDT 0.6B v3](https://huggingface.co/FluidInference/parakeet-ultra-coreml)
 rebuilds the transcript from the full recording on Core ML through
 [FluidAudio](https://github.com/FluidInference/FluidAudio): an hour of audio in about 10 seconds.
 
-**5 · One note.** The summary keeps the gist, decisions, tasks as *who — what — when*, open
+**6 · One note.** The summary keeps the gist, decisions, tasks as *who — what — when*, open
 questions and key numbers, and folds in what you typed during the call.
 
 ### Also
@@ -109,6 +120,7 @@ questions and key numbers, and folds in what you typed during the call.
 | Recording both sides of the call | Your Mac |
 | Transcription, live and after the call | Your Mac (Parakeet on Core ML) |
 | Translation | Your Mac (Apple's on-device translation, macOS 26+) |
+| Hints (optional, off without a key) | [OpenRouter](https://openrouter.ai) with your own API key: the decision model `baseten/bison-1` and Claude Haiku 5.5, both changeable. Sent after every turn of the other side: the conversation text and "About me", for the yes/no decision; for each hint also the meeting title, attendee names and your notes. Never audio. The key is kept on this Mac in a file only your account can read (`~/Library/Application Support/Granula`), never in the log. |
 | Summary | Claude, through the [Claude Code](https://claude.com/claude-code) CLI you are signed in to (`claude -p --model sonnet`). Only the transcript text is sent. |
 | Storage | Plain files in `~/Documents/Granula/` or any folder you pick in **Meetings folder…** |
 
@@ -133,7 +145,13 @@ Sources: [where Granola runs](https://www.granola.ai/blog/local-first-ai-notetak
 
 ## Install
 
-Granula is alpha and has no signed download yet, so for now you build it from source.
+**Download** (Apple Silicon only). Get `Granula.zip` from the [latest release](https://github.com/nahornyi-ai-lab/granula/releases/latest),
+unzip it and move **Granula** to **Applications**. Granula is alpha and not notarized by Apple yet, so
+the first time macOS refuses to open it: open **System Settings → Privacy & Security**, scroll down and
+click **Open Anyway** next to Granula. You do this once per version; macOS also asks again for the
+microphone and system audio.
+
+**Build from source.**
 
 Requirements:
 

@@ -22,6 +22,20 @@ private func word(_ text: String, _ start: Double, _ end: Double) -> WordTiming 
         #expect(cut.cutAt == (0.9 + 2.0) / 2)
     }
 
+    /// Real token timings of "Okay, got it." followed by silence (window 0–6.29 s): the decoder put
+    /// the period at the window's end. Without moving it the line never finished in the silence.
+    @Test func shortPhraseEndingInAPeriodFinishesInTheSilenceAfterIt() {
+        let tokens = [(" Okay", 2.48, 2.80), (",", 3.20, 3.44), (" got", 3.44, 3.76), (" it", 3.76, 4.08),
+                      (".", 6.16, 6.24)].enumerated().map { i, t in
+            TokenTiming(token: t.0, tokenId: i, startTime: t.1, endTime: t.2, confidence: 1)
+        }
+        let words = buildWordTimings(from: Transcriber.untimedClosingPunctuation(tokens))
+        let cut = LiveSegmenter.cut(words, duration: 6.29)
+        #expect(cut.lines.map(LiveSegmenter.text) == ["Okay, got it."])
+        #expect(cut.lines.first?.last?.endTime == 4.08)
+        #expect(cut.partial.isEmpty)
+    }
+
     @Test func trailingSilenceFinishesThePhrase() {
         let words = [word("a", 0, 0.4), word("b", 0.5, 0.9)]
         let cut = LiveSegmenter.cut(words, duration: 2.0)

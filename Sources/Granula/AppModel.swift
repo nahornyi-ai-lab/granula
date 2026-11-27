@@ -30,6 +30,20 @@ final class AppModel: ObservableObject {
     /// from `translationSettingsSources`.
     @Published var translationSettingsTarget: String?
     @Published var translationSettingsSources: [String] = []
+    /// Live hints: the owner's choices, the current recording's hints, whether a key is saved.
+    @Published var hintSettings = HintSettings.load() {
+        didSet { hintSettingsChanged(from: oldValue) }
+    }
+    @Published private(set) var hints: HintsSnapshot?
+    @Published private(set) var hasHintKey = KeyFile.exists(name: HintSettings.keyName)
+    @Published var showHintsSettings = false
+    @Published private(set) var hintCheck: HintCheck?
+    /// Which Check may still show its result.
+    private var hintCheckRun = 0
+    enum HintCheck: Equatable {
+        case checking
+        case done(judge: HintError?, answer: HintError?)
+    }
     /// Opens the main window (set by the app, which has SwiftUI's openWindow); sheets live there.
     var openMainWindow: (() -> Void)?
     /// Meetings whose transcript is being translated on request.
@@ -46,6 +60,9 @@ final class AppModel: ObservableObject {
     private var recorder: Recorder?
     private var liveSession: LiveSession?
     private let liveWindow = LiveWindow()
+    private var liveHints: LiveHints?
+    /// Live snapshots to the hints, in order.
+    private var hintFeed: AsyncStream<LiveSnapshot>.Continuation?
     private var recordingCallFamily: String?
     private var ticker: Timer?
     private var sleepObserver: NSObjectProtocol?
@@ -102,6 +119,8 @@ final class AppModel: ObservableObject {
                 liveSettings.languages = languages
                 processor.meetingLanguages = languages
             }
+            // Hints only in a hints E2E, with the default models and the run's own "About me".
+            hintSettings = e2e.hintsOut == nil ? HintSettings(enabled: false) : HintSettings(aboutMe: e2e.hintsAbout ?? "")
         }
         if e2e.liveWindow { liveSettings.window = true }
         if e2e.start {
@@ -146,6 +165,7 @@ final class AppModel: ObservableObject {
             self.recorder = recorder
             liveSession = session
             live = LiveSnapshot()
+            startHints(for: record)
             recordingFromCalendar = event != nil
             // Auto-stop only follows a call that is still on the microphone.
             recordingCallFamily = callApp.flatMap { callDetector.activeNow.contains($0.family) ? $0.family : nil }
@@ -230,12 +250,14 @@ final class AppModel: ObservableObject {
     private func liveChanged(_ snapshot: LiveSnapshot, from session: LiveSession) {
         guard liveSession === session else { return }
         live = snapshot
+        hintFeed?.yield(snapshot)
     }
 
     /// The phrases in progress become lines and the log is closed after the recording.
     private func finishLive(folder: URL) {
         liveWindow.hide()
         live = nil
+        stopHints()
         guard let session = liveSession else { return }
         liveSession = nil
         Task {
@@ -274,7 +296,147 @@ final class AppModel: ObservableObject {
     }
 
     private func showLiveWindow() {
-        liveWindow.show(model: self) { [weak self] in self?.liveSettings.window = false }
+        liveWindow.show(model: self, hints: hintSettings.enabled) { [weak self] in self?.liveSettings.window = false }
+    }
+
+    // MARK: - Live hints
+
+    /// The hints of a recording that starts now; fed with every live snapshot.
+    private func startHints(for record: MeetingRecord) {
+        let id = record.id
+        let hints = LiveHints(settings: hintSettings, startedAt: record.meeting.startedAt,
+                              key: { KeyFile.read(name: HintSettings.keyName) },
+                              context: { await AppModel.shared.hintContext(for: id) },
+                              translator: Translators.make(.live))
+        // Each snapshot holds every line so far: the newest is enough, and order is kept.
+        let (stream, feed) = AsyncStream<LiveSnapshot>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        liveHints = hints
+        hintFeed = feed
+        self.hints = HintsSnapshot()
+        // Weak: the hints keep this closure, and it must not keep them after the meeting.
+        let onChange: @Sendable (HintsSnapshot) -> Void = { [weak hints] snapshot in
+            guard let hints else { return }
+            Task { @MainActor in AppModel.shared.hintsChanged(snapshot, from: hints) }
+        }
+        Task {
+            await hints.setOnChange(onChange)
+            for await snapshot in stream { await hints.update(snapshot) }
+        }
+    }
+
+    private func hintsChanged(_ snapshot: HintsSnapshot, from hints: LiveHints) {
+        guard liveHints === hints else { return }
+        self.hints = snapshot
+        if let url = e2e.hintsOut { writeHintsForE2E(snapshot, to: url) }
+    }
+
+    /// Requests stop with the recording; its hints are not kept.
+    private func stopHints() {
+        hintFeed?.finish()
+        hintFeed = nil
+        hints = nil
+        guard let liveHints else { return }
+        self.liveHints = nil
+        Task { await liveHints.cancelAll() }
+    }
+
+    /// The meeting's title, attendees and notes as they are now (it may have been renamed).
+    func hintContext(for id: String) -> HintContext {
+        guard let record = meetings.first(where: { $0.id == id }) else { return HintContext() }
+        let current = store.load(folder: record.folder) ?? record
+        let notes = (try? String(contentsOf: current.url(MeetingFile.notes), encoding: .utf8)) ?? ""
+        return HintContext(title: current.meeting.title, attendees: current.meeting.attendees ?? [], notes: notes)
+    }
+
+    private func hintSettingsChanged(from old: HintSettings) {
+        // E2E runs set their own choices; the owner's stay as they were.
+        if !e2e.isActive { hintSettings.save() }
+        guard hintSettings != old else { return }
+        let settings = hintSettings
+        if let liveHints { Task { await liveHints.update(settings: settings) } }
+        if settings.enabled != old.enabled { liveWindow.setHints(settings.enabled) }
+        if settings.judge != old.judge || settings.answer != old.answer { resetHintCheck() }
+    }
+
+    /// A Check still running for the old models or key will not show its result.
+    private func resetHintCheck() {
+        hintCheckRun += 1
+        hintCheck = nil
+    }
+
+    /// Hints…, on the main window, which may be closed or behind the call.
+    func presentHintsSettings() {
+        openMainWindow?()
+        NSApp.activate(ignoringOtherApps: true)
+        showHintsSettings = true
+    }
+
+    /// Saves the OpenRouter key in Granula's key file; false when it could not be written.
+    @discardableResult
+    func saveHintKey(_ key: String) -> Bool {
+        let key = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty, KeyFile.save(key, name: HintSettings.keyName) else { return false }
+        hasHintKey = true
+        resetHintCheck()
+        if let liveHints { Task { await liveHints.keyChanged() } }
+        Log.event("hints.key_saved")
+        return true
+    }
+
+    func removeHintKey() {
+        KeyFile.delete(name: HintSettings.keyName)
+        hasHintKey = KeyFile.exists(name: HintSettings.keyName)
+        resetHintCheck()
+        if let liveHints { Task { await liveHints.keyChanged() } }
+        Log.event("hints.key_removed")
+    }
+
+    /// Hints… → Check: a tiny request to each of the two models.
+    func checkHints() {
+        guard hintCheck != .checking else { return }
+        let key: String
+        switch KeyFile.read(name: HintSettings.keyName) {
+        case .found(let value):
+            key = value
+        case .missing:
+            hasHintKey = false
+            return
+        case .refused:
+            hintCheck = .done(judge: .keyUnavailable, answer: .keyUnavailable)
+            return
+        }
+        resetHintCheck()
+        hintCheck = .checking
+        let run = hintCheckRun
+        let settings = hintSettings
+        Task {
+            let result = await LiveHints.check(settings: settings, key: key)
+            Log.event("hints.check", "judge=\(result.judge?.tag ?? "ok") answer=\(result.answer?.tag ?? "ok")")
+            // The models or the key changed meanwhile: this result is about something else.
+            guard run == hintCheckRun, hintCheck == .checking else { return }
+            hintCheck = .done(judge: result.judge, answer: result.answer)
+        }
+    }
+
+    /// `--e2e-hints-out <file>`: the hints as JSON, rewritten on every change.
+    private func writeHintsForE2E(_ snapshot: HintsSnapshot, to url: URL) {
+        let hints: [[String: Any]] = snapshot.hints.map { hint in
+            var state = "writing"
+            var error: Any = NSNull()
+            switch hint.state {
+            case .writing: break
+            case .done: state = "done"
+            case .failed(let why):
+                state = "failed"
+                error = why.tag
+            }
+            return ["id": hint.id, "said": hint.said, "start": hint.start, "text": hint.text,
+                    "translation": hint.translation.map { $0 as Any } ?? NSNull(), "state": state, "error": error]
+        }
+        let object: [String: Any] = ["judgeError": snapshot.judgeError.map { $0.tag as Any } ?? NSNull(), "hints": hints]
+        guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
+        else { return }
+        try? data.write(to: url, options: .atomic)
     }
 
     // MARK: - Translation
@@ -656,9 +818,14 @@ struct E2EOptions {
     let languages: [String]?
     let liveWindow: Bool
     let liveSnapshotFolder: URL?
+    /// `--e2e-hints-out <file>`: hints on for the run (default models), written as JSON on every
+    /// change; `--e2e-hints-about <text>`: the run's "About me". Without them hints are off in E2E.
+    let hintsOut: URL?
+    let hintsAbout: String?
     var isActive: Bool {
         start || stopAfter != nil || acceptCallPrompt || snapshotFolder != nil
             || translate != nil || translateFrom != nil || languages != nil || liveWindow || liveSnapshotFolder != nil
+            || hintsOut != nil
     }
 
     init(arguments: [String]) {
@@ -678,6 +845,8 @@ struct E2EOptions {
         }.flatMap { $0.isEmpty ? nil : $0 }
         liveWindow = arguments.contains("--e2e-live-window")
         liveSnapshotFolder = value("--e2e-live-snapshots").map { URL(fileURLWithPath: $0) }
+        hintsOut = value("--e2e-hints-out").map { URL(fileURLWithPath: $0) }
+        hintsAbout = value("--e2e-hints-about")
         start = arguments.contains("--e2e-start")
         acceptCallPrompt = arguments.contains("--e2e-accept-call-prompt")
         if let i = arguments.firstIndex(of: "--e2e-stop-after"), i + 1 < arguments.count {

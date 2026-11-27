@@ -19,6 +19,9 @@ struct GranulaApp: App {
                 .sheet(isPresented: $model.showTranslationSettings, onDismiss: { model.translationSettingsDismissed() }) {
                     TranslationSettingsView().environmentObject(model)
                 }
+                .sheet(isPresented: $model.showHintsSettings) {
+                    HintsSettingsView().environmentObject(model)
+                }
         }
         .defaultSize(width: 1040, height: 680)
         .commands {
@@ -30,6 +33,7 @@ struct GranulaApp: App {
                 // The sheets live on the main window, which may be closed.
                 OpenWindowButton(title: "Permissions and model…") { model.showOnboarding = true }
                 OpenWindowButton(title: "Translation…") { model.showTranslationSettings = true }
+                OpenWindowButton(title: "Hints…") { model.showHintsSettings = true }
                 Button("Meetings folder…") { model.chooseFolder() }
                 LanguagePicker().environmentObject(model)
             }
@@ -98,6 +102,7 @@ struct MenuBarContent: View {
         }
         OpenWindowButton(title: "Permissions and model…") { model.showOnboarding = true }
         OpenWindowButton(title: "Translation…") { model.showTranslationSettings = true }
+        OpenWindowButton(title: "Hints…") { model.showHintsSettings = true }
         Button("Meetings folder…") { model.chooseFolder() }
         LanguagePicker()
         Button("Quit") { NSApp.terminate(nil) }
