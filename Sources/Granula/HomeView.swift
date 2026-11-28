@@ -155,6 +155,7 @@ struct UpcomingEventRow: View {
     @EnvironmentObject var model: AppModel
     let meeting: CalendarMeeting
     let now: Date
+    @State private var preparing = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -164,11 +165,24 @@ struct UpcomingEventRow: View {
                 Text(subtitle).font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
+            // An event without a stable calendar ID cannot be matched to its recording later.
+            if let key = meeting.prepKey {
+                let prepared = model.preparedKeys.contains(key)
+                Button { preparing = true } label: {
+                    Label("Prepare", systemImage: prepared ? "doc.text.fill" : "doc.text")
+                }
+                .buttonStyle(PillButtonStyle())
+                .help(prepared ? "Prepared: context, hints and translation for this meeting"
+                               : "Context, hints and translation for this meeting")
+            }
             Button("Record") { Task { await model.startRecording(event: meeting) } }
                 .buttonStyle(PillButtonStyle())
                 .disabled(model.isRecording)
         }
         .fixedSize(horizontal: false, vertical: true)
+        .sheet(isPresented: $preparing) {
+            PrepareSheet(meeting: meeting, saved: model.prep(for: meeting)).environmentObject(model)
+        }
     }
 
     private var subtitle: String {

@@ -17,9 +17,17 @@ struct HintsSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Hints").font(.title2.weight(.semibold))
-            Text("During a call, when the other side expects your reply, a suggested answer appears in the Live window. After every turn of the other side, the conversation and \"About me\" are sent to OpenRouter; for a hint, also the meeting title, attendee names and your notes.")
+            Text("During a call, when the other side expects your reply, a suggested answer appears in the Live window. After every turn of the other side, the conversation and \"About me\" are sent to OpenRouter; for a hint, also the meeting title, attendee names, your notes and the meeting context.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle("Turn on hints for new meetings", isOn: $model.hintSettings.enabled)
+                Text("Each meeting can differ: Prepare in Coming up, or the lightbulb in the Live window.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("OpenRouter API key").font(.headline)
@@ -80,7 +88,7 @@ struct HintsSettingsView: View {
                     .padding(4)
                     .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .textBackgroundColor)))
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
-                Text("Your name, your work, facts people ask you about. Hints take facts only from here, your notes and the call.")
+                Text("Your name, your work, facts people ask you about. Hints take facts only from here, the meeting context, your notes and the call.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

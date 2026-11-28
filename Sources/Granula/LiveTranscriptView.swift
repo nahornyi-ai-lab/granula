@@ -26,7 +26,7 @@ struct LiveTranscriptView: View {
                 lines(live)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            if model.hintSettings.enabled {
+            if model.hintsShown {
                 Divider()
                 HintsColumn()
                     .frame(width: LiveWindow.hintsWidth)
@@ -105,12 +105,13 @@ struct LanguagePairPicker: View {
                 }
                 .labelsHidden()
                 .fixedSize()
-                .disabled(model.liveSettings.target == nil)
+                .disabled(model.liveTarget == nil)
                 .help("The language to translate from. Auto: each line's own language, among the meeting languages")
                 Image(systemName: "arrow.right")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Picker("To", selection: $model.liveSettings.target) {
+                // This meeting's translation: "Don't translate" leaves the default language as it is.
+                Picker("To", selection: Binding(get: { model.liveTarget }, set: { model.setLiveTarget($0) })) {
                     Text("Don't translate").tag(String?.none)
                     Divider()
                     ForEach(TranslationLanguages.targets, id: \.self) { code in
@@ -119,7 +120,7 @@ struct LanguagePairPicker: View {
                 }
                 .labelsHidden()
                 .fixedSize()
-                .help("The language to translate into")
+                .help("The language to translate into. \"Don't translate\" turns translation off for this meeting only")
                 Spacer(minLength: 0)
                 Button {
                     model.presentTranslationSettings()
@@ -253,20 +254,20 @@ struct LiveStatusLine: View {
     }
 }
 
-/// The lightbulb in the header: the hints column on or off.
+/// The lightbulb in the header: hints for this meeting on or off.
 struct HintsToggle: View {
     @EnvironmentObject var model: AppModel
 
     var body: some View {
-        let on = model.hintSettings.enabled
+        let on = model.hintsShown
         Button {
-            model.hintSettings.enabled.toggle()
+            model.setMeetingHints(!on)
         } label: {
             Image(systemName: on ? "lightbulb.fill" : "lightbulb")
                 .foregroundStyle(on ? Theme.accent : .secondary)
         }
         .buttonStyle(.borderless)
-        .help("Hints")
+        .help("Hints for this meeting")
         .accessibilityLabel(Text("Hints"))
     }
 }

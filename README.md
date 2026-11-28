@@ -71,7 +71,7 @@ Price is settled; the CRM integration is still open.
 ```
 
 Next to it, in one folder per meeting: the compressed audio, `transcript.md` with **Me** and **Them**
-on every line, your own `notes.md`, and, with translation on, `transcript.translated.md`.
+on every line, your own `notes.md` and `context.md`, and, with translation on, `transcript.translated.md`.
 Other templates — **Negotiation**, **1:1**, **General meeting** — are Markdown files you can edit or add to.
 
 ## How it works
@@ -92,10 +92,10 @@ original small with the translation under it, made on the Mac by macOS's own tra
 (macOS 26+). Lines already in your language stay as they are.
 
 **4 · A hint when it is your turn (optional).** Add an [OpenRouter](https://openrouter.ai) key in
-**Hints…**; the lightbulb in the Live window shows or hides the hints column. When the other side stops talking, a decision
+**Hints…**; the lightbulb in the Live window turns hints on or off for this meeting. When the other side stops talking, a decision
 model (Bison by default) answers one question in a fraction of a second: does this expect a reply from
 you? Only on yes, Claude Haiku writes what you can say — one to three sentences in the speaker's
-language, using only the conversation, your notes and what you wrote in **About me**, with a
+language, using only the conversation, the meeting context, your notes and what you wrote in **About me**, with a
 translation under it. *"Okay, got it"* gets no hint; *"Tell me about your timeline"* does, even
 without a question mark.
 
@@ -104,12 +104,17 @@ rebuilds the transcript from the full recording on Core ML through
 [FluidAudio](https://github.com/FluidInference/FluidAudio): an hour of audio in about 10 seconds.
 
 **6 · One note.** The summary keeps the gist, decisions, tasks as *who — what — when*, open
-questions and key numbers, and folds in what you typed during the call.
+questions and key numbers, and folds in what you typed during the call. What you prepared before
+the meeting is background for names and topics, never reported as said in it.
 
 ### Also
 
 - **Knows your calendar.** Upcoming meetings for the next 5 days, a reminder a minute before each one,
   and every recording made during a meeting takes its title and participants. Read-only access.
+- **Prepare a meeting.** **Prepare** next to an upcoming meeting: paste the agenda or drop a résumé
+  (PDF, Word, RTF, OpenDocument, text, Markdown, HTML), and tick hints and translation on or off for
+  this meeting only, so no credits go where they are not needed. The recording of that meeting takes
+  it; the context also shows above the notes, where you can add more.
 - **Many languages.** Speech in 25 European languages (Parakeet v3), English and Spanish among them.
   Translation into 20 languages, Chinese, Japanese, Korean and Arabic among them.
 
@@ -120,8 +125,8 @@ questions and key numbers, and folds in what you typed during the call.
 | Recording both sides of the call | Your Mac |
 | Transcription, live and after the call | Your Mac (Parakeet on Core ML) |
 | Translation | Your Mac (Apple's on-device translation, macOS 26+) |
-| Hints (optional, off without a key) | [OpenRouter](https://openrouter.ai) with your own API key: the decision model `baseten/bison-1` and Claude Haiku 5.5, both changeable. Sent after every turn of the other side: the conversation text and "About me", for the yes/no decision; for each hint also the meeting title, attendee names and your notes. Never audio. The key is kept on this Mac in a file only your account can read (`~/Library/Application Support/Granula`), never in the log. |
-| Summary | Claude, through the [Claude Code](https://claude.com/claude-code) CLI you are signed in to (`claude -p --model sonnet`). Only the transcript text is sent. |
+| Hints (optional, off without a key) | [OpenRouter](https://openrouter.ai) with your own API key: the decision model `baseten/bison-1` and Claude Haiku 5.5, both changeable. Sent after every turn of the other side: the conversation text and "About me", for the yes/no decision; for each hint also the meeting title, attendee names, your notes and the meeting context. Never audio. The key is kept on this Mac in a file only your account can read (`~/Library/Application Support/Granula`), never in the log. |
+| Summary | Claude, through the [Claude Code](https://claude.com/claude-code) CLI you are signed in to (`claude -p --model sonnet`). Sent: the transcript text, your notes, the meeting context, and the meeting's title, date and calendar attendees. Never audio. |
 | Storage | Plain files in `~/Documents/Granula/` or any folder you pick in **Meetings folder…** |
 
 Granula has no servers, accounts or telemetry. No Claude CLI — no summaries; everything else still works.

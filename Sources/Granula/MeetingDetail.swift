@@ -55,8 +55,12 @@ struct MeetingDetail: View {
                 case .notes:
                     // Full width: what is being said is in the Live window. The editor stays the
                     // same view when the recording stops, so no typing is lost.
-                    NotesEditor(record: record)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    VStack(spacing: 0) {
+                        ContextBlock(record: record)
+                        Divider()
+                        NotesEditor(record: record)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 case .summary: SummaryTab(record: record)
                 case .transcript: TranscriptTab(record: record)
                 }
@@ -110,6 +114,53 @@ struct MeetingDetail: View {
         if !isRecording { parts.append(String(localized: "\(minutes) min")) }
         if record.meeting.interrupted { parts.append(String(localized: "recording interrupted")) }
         return parts.joined(separator: " · ")
+    }
+}
+
+// MARK: - Context
+
+/// What the meeting is about, above the notes: what was prepared for it, or what is added here.
+/// Folded by default; hints and the summary read it either way.
+struct ContextBlock: View {
+    @EnvironmentObject var model: AppModel
+    let record: MeetingRecord
+    @State private var text: String
+    @State private var open = false
+
+    init(record: MeetingRecord) {
+        self.record = record
+        _text = State(initialValue: (try? String(contentsOf: record.url(MeetingFile.context), encoding: .utf8)) ?? "")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation(.easeOut(duration: 0.15)) { open.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .rotationEffect(.degrees(open ? 90 : 0))
+                    Text("Context").font(.headline)
+                    Text(preview).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if open {
+                ContextEditor(text: $text, save: { model.saveContext($0, for: record.id) })
+            }
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 10)
+    }
+
+    private var preview: String {
+        let first = text.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .first { !$0.isEmpty }
+        return first ?? String(localized: "Agenda, résumé, documents: hints and the summary use them")
     }
 }
 

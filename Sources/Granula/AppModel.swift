@@ -13,7 +13,11 @@ final class AppModel: ObservableObject {
     @Published private(set) var snapshot: Recorder.Snapshot?
     @Published var showOnboarding = false
     @Published private(set) var templates: [SummaryTemplate] = []
-    @Published private(set) var upcoming: [CalendarMeeting] = []
+    @Published private(set) var upcoming: [CalendarMeeting] = [] {
+        didSet { refreshPrepared() }
+    }
+    /// Upcoming meetings that have something prepared (their `prepKey`).
+    @Published private(set) var preparedKeys: Set<String> = []
     @Published private(set) var calendarAccess = CalendarWatcher.access
     @Published var remindersOn = UserDefaults.standard.object(forKey: AppModel.remindersKey) as? Bool ?? true {
         didSet { UserDefaults.standard.set(remindersOn, forKey: Self.remindersKey) }
@@ -38,6 +42,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var hasHintKey = KeyFile.exists(name: HintSettings.keyName)
     @Published var showHintsSettings = false
     @Published private(set) var hintCheck: HintCheck?
+    /// The current recording's own choices, kept in its meeting.json: hints (the lightbulb) and
+    /// translation ("Don't translate" in the Live window turns it off for this meeting only).
+    @Published private(set) var meetingHints = false
+    @Published private(set) var meetingTranslates = true
     /// Which Check may still show its result.
     private var hintCheckRun = 0
     enum HintCheck: Equatable {
@@ -75,6 +83,20 @@ final class AppModel: ObservableObject {
     let e2e = E2EOptions(arguments: CommandLine.arguments)
 
     var isRecording: Bool { recorder != nil }
+    /// The live translation's language: the default To, unless this meeting does not translate.
+    var liveTarget: String? { isRecording && !meetingTranslates ? nil : liveSettings.target }
+    /// Whether the Live window shows the hints column.
+    var hintsShown: Bool { isRecording ? meetingHints : hintSettings.enabled }
+    /// What the speech model listens for with this meeting's translation.
+    private var liveLanguages: [String] {
+        LiveSettings.detectionLanguages(source: liveSettings.source, target: liveTarget, languages: liveSettings.languages)
+    }
+    /// The owner's hint choices with this meeting's on or off.
+    private var meetingHintSettings: HintSettings {
+        var settings = hintSettings
+        settings.enabled = meetingHints
+        return settings
+    }
     var recordingID: String? { recorder?.record.id }
 
     private init() {}
@@ -98,8 +120,10 @@ final class AppModel: ObservableObject {
             upcoming = calendar.meetings
             checkReminder()
         }
+        // A fresh E2E build asks for the calendar first; the run below waits for it.
+        var calendarReady: Task<Void, Never>?
         if e2e.isActive && CalendarWatcher.access == .notAsked {
-            Task { await connectCalendar() }
+            calendarReady = Task { await connectCalendar() }
         } else {
             calendar.start()
         }
@@ -124,7 +148,12 @@ final class AppModel: ObservableObject {
         }
         if e2e.liveWindow { liveSettings.window = true }
         if e2e.start {
-            Task { await startRecording() }
+            Task {
+                // The meeting going on now is linked (and prepared) only once the calendar is read.
+                await calendarReady?.value
+                if let file = e2e.prepare { prepareForE2E(file) }
+                await startRecording()
+            }
         }
         if let folder = e2e.snapshotFolder {
             takeE2ESnapshots(to: folder)
@@ -143,6 +172,8 @@ final class AppModel: ObservableObject {
     func startRecording(callApp: CallDetector.CallApp? = nil, event: CalendarMeeting? = nil) async {
         guard recorder == nil else { return }
         hidePanel()
+        // An open Prepare sheet saves its last typing before the prep is read below.
+        NotificationCenter.default.post(name: .flushContextEdits, object: nil)
         do {
             let linked = event ?? CalendarRules.current(in: calendar.meetings, now: Date())
             if event == nil, let linked { Log.event("calendar.linked", "title=\(linked.title)") }
@@ -153,14 +184,26 @@ final class AppModel: ObservableObject {
                 record.meeting.calendarEventID = linked.eventID
                 record.meeting.attendees = linked.attendees.isEmpty ? nil : linked.attendees
             }
+            // What was prepared for this calendar meeting: its context and its two choices.
+            let prepared = linked?.prepKey.flatMap { store.loadPrep(key: $0) }
+            meetingHints = prepared?.prep.hints ?? hintSettings.enabled
+            meetingTranslates = prepared?.prep.translate ?? true
+            record.meeting.hints = meetingHints
             // The pair goes with the meeting: its transcript is translated the same way afterwards.
-            record.meeting.translateTo = TranslationLanguages.isAvailable ? liveSettings.target : nil
+            let target = meetingTranslates ? liveSettings.target : nil
+            record.meeting.translateTo = TranslationLanguages.isAvailable ? target : nil
             record.meeting.translateFrom = record.meeting.translateTo == nil ? nil : liveSettings.source
             try store.save(record)
+            try store.write(prepared?.context ?? "", MeetingFile.context, of: record)
+            if let prepared {
+                Log.event("prep.used", "folder=\(store.prepFolder(key: prepared.prep.key).lastPathComponent) "
+                    + "chars=\(prepared.context.count) hints=\(meetingHints) translate=\(meetingTranslates)")
+            }
             let session = LiveSession(
                 folder: record.folder, startedAt: record.meeting.startedAt,
-                languages: liveSettings.detectionLanguages, target: liveSettings.target,
-                recognizer: Transcriber.shared, translator: Translators.make(.live))
+                languages: LiveSettings.detectionLanguages(source: liveSettings.source, target: target,
+                                                           languages: liveSettings.languages),
+                target: target, recognizer: Transcriber.shared, translator: Translators.make(.live))
             let recorder = try Recorder(record: record, live: session)
             self.recorder = recorder
             liveSession = session
@@ -278,25 +321,51 @@ final class AppModel: ObservableObject {
         if liveSettings.window != old.window {
             if liveSettings.window { showLiveWindow() } else { liveWindow.hide() }
         }
-        let languages = liveSettings.detectionLanguages
-        if liveSettings.target != old.target || languages != old.detectionLanguages {
-            let target = liveSettings.target
+        // A new default To (Translation… or the Live window) applies to this meeting too,
+        // "Don't translate" included.
+        let was = meetingTranslates ? old.target : nil
+        if liveSettings.target != old.target { meetingTranslates = liveSettings.target != nil }
+        applyLiveTranslation(
+            from: was, source: old.source,
+            languages: LiveSettings.detectionLanguages(source: old.source, target: was, languages: old.languages))
+    }
+
+    /// The Live window's To: "Don't translate" turns translation off for this meeting only;
+    /// a language turns it on and becomes the default, as in Translation….
+    func setLiveTarget(_ code: String?) {
+        guard isRecording else { liveSettings.target = code; return }
+        if let code, liveSettings.target != code {
+            liveSettings.target = code  // liveSettingsChanged turns this meeting's translation on
+            return
+        }
+        let on = code != nil
+        guard on != meetingTranslates else { return }
+        let was = liveTarget, languages = liveLanguages
+        meetingTranslates = on
+        applyLiveTranslation(from: was, source: liveSettings.source, languages: languages)
+    }
+
+    /// Sends this meeting's translation to the live session and to its meeting.json when it changed.
+    private func applyLiveTranslation(from oldTarget: String?, source oldSource: String?, languages oldLanguages: [String]) {
+        let target = liveTarget
+        let languages = liveLanguages
+        if target != oldTarget || languages != oldLanguages {
             Log.event("live.languages", "from=\(liveSettings.source ?? "auto") to=\(target ?? "off") detect=\(languages.joined(separator: ","))")
             // One task: the languages and the target reach the session together.
             let session = liveSession
             Task { await session?.update(target: target, languages: languages) }
         }
-        if liveSettings.target != old.target || liveSettings.source != old.source,
+        if target != oldTarget || liveSettings.source != oldSource,
            let folder = recorder?.record.folder, var current = store.load(folder: folder) {
             // From is off without a To: a greyed-out From must not decide the transcript's translation.
-            current.meeting.translateTo = TranslationLanguages.isAvailable ? liveSettings.target : nil
+            current.meeting.translateTo = TranslationLanguages.isAvailable ? target : nil
             current.meeting.translateFrom = current.meeting.translateTo == nil ? nil : liveSettings.source
             try? store.save(current)
         }
     }
 
     private func showLiveWindow() {
-        liveWindow.show(model: self, hints: hintSettings.enabled) { [weak self] in self?.liveSettings.window = false }
+        liveWindow.show(model: self, hints: hintsShown) { [weak self] in self?.liveSettings.window = false }
     }
 
     // MARK: - Live hints
@@ -304,7 +373,7 @@ final class AppModel: ObservableObject {
     /// The hints of a recording that starts now; fed with every live snapshot.
     private func startHints(for record: MeetingRecord) {
         let id = record.id
-        let hints = LiveHints(settings: hintSettings, startedAt: record.meeting.startedAt,
+        let hints = LiveHints(settings: meetingHintSettings, startedAt: record.meeting.startedAt,
                               key: { KeyFile.read(name: HintSettings.keyName) },
                               context: { await AppModel.shared.hintContext(for: id) },
                               translator: Translators.make(.live))
@@ -340,21 +409,37 @@ final class AppModel: ObservableObject {
         Task { await liveHints.cancelAll() }
     }
 
-    /// The meeting's title, attendees and notes as they are now (it may have been renamed).
+    /// The meeting's title, attendees, notes and context as they are now (it may have been renamed).
     func hintContext(for id: String) -> HintContext {
         guard let record = meetings.first(where: { $0.id == id }) else { return HintContext() }
         let current = store.load(folder: record.folder) ?? record
-        let notes = (try? String(contentsOf: current.url(MeetingFile.notes), encoding: .utf8)) ?? ""
-        return HintContext(title: current.meeting.title, attendees: current.meeting.attendees ?? [], notes: notes)
+        return HintContext(title: current.meeting.title, attendees: current.meeting.attendees ?? [],
+                           notes: store.read(MeetingFile.notes, of: current) ?? "",
+                           context: store.read(MeetingFile.context, of: current) ?? "")
+    }
+
+    /// The lightbulb: hints on or off for the current meeting only.
+    func setMeetingHints(_ on: Bool) {
+        guard isRecording else { hintSettings.enabled = on; return }
+        guard on != meetingHints else { return }
+        meetingHints = on
+        Log.event("hints.meeting", "on=\(on)")
+        if let folder = recorder?.record.folder, var current = store.load(folder: folder) {
+            current.meeting.hints = on
+            try? store.save(current)
+        }
+        let settings = meetingHintSettings
+        if let liveHints { Task { await liveHints.update(settings: settings) } }
+        liveWindow.setHints(on)
     }
 
     private func hintSettingsChanged(from old: HintSettings) {
         // E2E runs set their own choices; the owner's stay as they were.
         if !e2e.isActive { hintSettings.save() }
         guard hintSettings != old else { return }
-        let settings = hintSettings
+        // "Turn on hints for new meetings" leaves the current one as it is.
+        let settings = meetingHintSettings
         if let liveHints { Task { await liveHints.update(settings: settings) } }
-        if settings.enabled != old.enabled { liveWindow.setHints(settings.enabled) }
         if settings.judge != old.judge || settings.answer != old.answer { resetHintCheck() }
     }
 
@@ -627,6 +712,59 @@ final class AppModel: ObservableObject {
         try? store.write(text, MeetingFile.notes, of: record)
     }
 
+    /// The Context block of the meeting screen.
+    func saveContext(_ text: String, for id: String) {
+        guard let record = record(id: id) else { return }
+        try? store.write(text, MeetingFile.context, of: record)
+    }
+
+    // MARK: - Meeting prep
+
+    /// What is prepared for an upcoming meeting: its context and its two choices (nil: the default).
+    func prep(for meeting: CalendarMeeting) -> (context: String, hints: Bool?, translate: Bool?) {
+        guard let key = meeting.prepKey, let saved = store.loadPrep(key: key) else { return ("", nil, nil) }
+        return (saved.context, saved.prep.hints, saved.prep.translate)
+    }
+
+    /// Saves the prep of an upcoming meeting: the Prepare sheet as it is typed, and the prep E2E.
+    /// False when it could not be saved.
+    @discardableResult
+    func savePrep(for meeting: CalendarMeeting, context: String, hints: Bool?, translate: Bool?) -> Bool {
+        guard let key = meeting.prepKey else { return false }
+        let prep = MeetingPrep(key: key, title: meeting.title, start: meeting.start, hints: hints, translate: translate)
+        do {
+            try store.savePrep(prep, context: context)
+        } catch {
+            Log.error("prep.save_failed", error)
+            return false
+        }
+        Log.event("prep.saved", "folder=\(store.prepFolder(key: key).lastPathComponent) chars=\(context.count) "
+            + "hints=\(hints.map { String($0) } ?? "default") translate=\(translate.map { String($0) } ?? "default")")
+        refreshPrepared()
+        return true
+    }
+
+    /// Which upcoming meetings show a filled Prepare icon.
+    private func refreshPrepared() {
+        preparedKeys = Set(upcoming.compactMap { meeting -> String? in
+            guard let key = meeting.prepKey, let saved = store.loadPrep(key: key) else { return nil }
+            let empty = saved.context.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && saved.prep.hints == nil && saved.prep.translate == nil
+            return empty ? nil : key
+        })
+    }
+
+    /// E2E: what the Prepare sheet saves, for the calendar meeting going on now, from a text file.
+    /// Only the test event ("E2E prep"): a real meeting's prep is never touched.
+    private func prepareForE2E(_ file: URL) {
+        guard let meeting = CalendarRules.current(in: calendar.meetings, now: Date()), meeting.title == "E2E prep",
+              let text = ContextImport.text(from: file),
+              savePrep(for: meeting, context: text, hints: nil, translate: e2e.prepareTranslate) else {
+            Log.event("e2e.prepare_failed", "file=\(file.lastPathComponent)")
+            return
+        }
+    }
+
     func retry(_ record: MeetingRecord) {
         processor.retry(record)
     }
@@ -646,6 +784,7 @@ final class AppModel: ObservableObject {
         meetings = store.loadAll()
         processor.recover()
         meetings = store.loadAll()
+        refreshPrepared()
     }
 
     /// "Meetings folder…": new meetings go to the chosen folder; old ones stay in the old one.
@@ -665,6 +804,7 @@ final class AppModel: ObservableObject {
         guard panel.runModal() == .OK, let url = panel.url,
               url.standardizedFileURL != store.root.standardizedFileURL else { return }
         let oldTemplates = store.templatesFolder
+        let oldRoot = store.root
         do {
             try store.use(root: url)
         } catch {
@@ -674,6 +814,7 @@ final class AppModel: ObservableObject {
         if !FileManager.default.fileExists(atPath: store.templatesFolder.path) {
             try? FileManager.default.copyItem(at: oldTemplates, to: store.templatesFolder)
         }
+        store.copyPreps(from: oldRoot)
         UserDefaults.standard.set(url.path, forKey: Self.folderKey)
         Log.event("storage.folder_changed", "path=\(url.path)")
         selection = nil
@@ -822,10 +963,14 @@ struct E2EOptions {
     /// change; `--e2e-hints-about <text>`: the run's "About me". Without them hints are off in E2E.
     let hintsOut: URL?
     let hintsAbout: String?
+    /// `--e2e-prepare <text file>`: before `--e2e-start`, the file's text is saved as the prep of the
+    /// calendar meeting going on now; `--e2e-prepare-translate on|off`: its translation choice.
+    let prepare: URL?
+    let prepareTranslate: Bool?
     var isActive: Bool {
         start || stopAfter != nil || acceptCallPrompt || snapshotFolder != nil
             || translate != nil || translateFrom != nil || languages != nil || liveWindow || liveSnapshotFolder != nil
-            || hintsOut != nil
+            || hintsOut != nil || prepare != nil
     }
 
     init(arguments: [String]) {
@@ -847,6 +992,8 @@ struct E2EOptions {
         liveSnapshotFolder = value("--e2e-live-snapshots").map { URL(fileURLWithPath: $0) }
         hintsOut = value("--e2e-hints-out").map { URL(fileURLWithPath: $0) }
         hintsAbout = value("--e2e-hints-about")
+        prepare = value("--e2e-prepare").map { URL(fileURLWithPath: $0) }
+        prepareTranslate = value("--e2e-prepare-translate").map { $0 == "on" }
         start = arguments.contains("--e2e-start")
         acceptCallPrompt = arguments.contains("--e2e-accept-call-prompt")
         if let i = arguments.firstIndex(of: "--e2e-stop-after"), i + 1 < arguments.count {

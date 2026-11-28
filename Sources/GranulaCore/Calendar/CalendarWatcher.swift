@@ -118,7 +118,9 @@ public final class CalendarWatcher {
             attendees: others.map(displayName),
             url: event.url?.absoluteString,
             location: event.location,
-            notes: event.notes)
+            notes: event.notes,
+            externalID: event.calendarItemExternalIdentifier,
+            occurrence: event.hasRecurrenceRules || event.isDetached ? event.occurrenceDate : nil)
     }
 
     /// A name without the e-mail: the participant's name, else the part before "@".

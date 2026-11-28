@@ -16,6 +16,8 @@ public enum MeetingFile {
     public static let systemRaw = "system.caf"
     public static let micAudio = "mic.m4a"
     public static let systemAudio = "system.m4a"
+    /// What the owner prepared or added about the meeting: agenda, résumé, files' text.
+    public static let context = "context.md"
 }
 
 /// A meeting together with the folder it lives in.
@@ -46,14 +48,14 @@ public final class MeetingStore: @unchecked Sendable {
 
     public var templatesFolder: URL { root.appendingPathComponent("_templates", isDirectory: true) }
 
-    private static let encoder: JSONEncoder = {
+    static let encoder: JSONEncoder = {
         let e = JSONEncoder()
         e.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         e.dateEncodingStrategy = .iso8601
         return e
     }()
 
-    private static let decoder: JSONDecoder = {
+    static let decoder: JSONDecoder = {
         let d = JSONDecoder()
         d.dateDecodingStrategy = .iso8601
         return d

@@ -16,11 +16,19 @@ public struct CalendarMeeting: Equatable, Sendable, Identifiable {
     public var url: String?
     public var location: String?
     public var notes: String?
+    /// The event's ID in the calendar server (`calendarItemExternalIdentifier`), the same on
+    /// every Mac and after a move; nil when the calendar gives none.
+    public var externalID: String?
+    /// The original start of this occurrence, only for an event of a recurring series.
+    public var occurrence: Date?
 
     public init(eventID: String, title: String, start: Date, end: Date, isAllDay: Bool = false,
                 declinedByMe: Bool = false, attendees: [String] = [], url: String? = nil,
-                location: String? = nil, notes: String? = nil) {
+                location: String? = nil, notes: String? = nil, externalID: String? = nil,
+                occurrence: Date? = nil) {
         self.eventID = eventID
+        self.externalID = externalID
+        self.occurrence = occurrence
         self.title = title
         self.start = start
         self.end = end
@@ -35,6 +43,14 @@ public struct CalendarMeeting: Equatable, Sendable, Identifiable {
     /// One reminder per event and start time: a moved event is reminded again.
     public var reminderKey: String { "\(eventID)|\(Int(start.timeIntervalSince1970))" }
     public var id: String { reminderKey }
+
+    /// Which prep belongs to this meeting: the event, plus the occurrence for a recurring series
+    /// (each week of a weekly meeting has its own). Nil: no stable ID, so nothing can be prepared.
+    public var prepKey: String? {
+        guard let externalID, !externalID.isEmpty else { return nil }
+        guard let occurrence else { return externalID }
+        return externalID + "|" + ISO8601DateFormatter().string(from: occurrence)
+    }
 }
 
 public enum CalendarRules {

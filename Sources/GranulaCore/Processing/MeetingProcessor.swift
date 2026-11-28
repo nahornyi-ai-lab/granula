@@ -178,7 +178,9 @@ public final class MeetingProcessor {
         do {
             let summary = try await summarizer.generate(
                 system: Templates.systemPrompt(for: template),
-                prompt: Templates.userPrompt(meeting: record.meeting, notes: notes, transcript: transcript))
+                prompt: Templates.userPrompt(meeting: record.meeting, notes: notes,
+                                             background: store.read(MeetingFile.context, of: record) ?? "",
+                                             transcript: transcript))
             try store.write(summary + "\n", MeetingFile.summary, of: record)
             record = finish { $0.status = .done; $0.error = nil }
             Log.event("processing.done", "folder=\(record.folder.lastPathComponent)")

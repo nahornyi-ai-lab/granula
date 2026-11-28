@@ -34,6 +34,8 @@ public struct Meeting: Codable, Identifiable, Equatable, Sendable {
     public var translateTo: String?
     /// The language translated from ("From" in the live window); nil: Auto, among the meeting languages.
     public var translateFrom: String?
+    /// Live hints for this meeting (the lightbulb); nil in meetings made before it was per meeting.
+    public var hints: Bool?
     public var micPeak: Float
     public var systemPeak: Float
     public var error: String?
